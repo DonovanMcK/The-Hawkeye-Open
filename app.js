@@ -1,4 +1,4 @@
-/* ===== The Hawkeye Open — app logic ===== */
+/* ===== The Hawkeye Open — app logic (internal backend) ===== */
 
 // ---------- Course ----------------------------------------------------
 
@@ -25,15 +25,13 @@ const state = {
   name: "",
   code: "",
   playerId: null,
-  player: null,        // { id, name, pee_total, puke_total }
-  scores: {},          // { [hole_num]: { value, total, hole_type, par } }
-  players: [],         // leaderboard
-  scoresByPlayer: {},  // { [player_id]: [score rows] }
+  player: null,
+  scores: {},          // { [hole_num]: scoreRow }
+  players: [],
+  scoresByPlayer: {},
   tab: "course",
-  channel: null
+  evt: null            // EventSource
 };
-
-let supabase = null;
 
 // ---------- DOM helpers ----------------------------------------------
 
@@ -41,20 +39,25 @@ const $  = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 const tpl = (id) => document.getElementById(id).content.cloneNode(true);
 
-// ---------- Init ------------------------------------------------------
+// ---------- API client -----------------------------------------------
 
-function initSupabase() {
-  if (typeof SUPABASE_URL !== "string" ||
-      SUPABASE_URL.startsWith("YOUR_") ||
-      typeof SUPABASE_ANON_KEY !== "string" ||
-      SUPABASE_ANON_KEY.startsWith("YOUR_")) {
-    return null;
+async function api(method, path, body) {
+  const res = await fetch(path, {
+    method,
+    headers: body ? { "Content-Type": "application/json" } : {},
+    body: body ? JSON.stringify(body) : undefined
+  });
+  if (!res.ok) {
+    let msg = `${res.status} ${res.statusText}`;
+    try { const j = await res.json(); if (j.error) msg = j.error; } catch {}
+    throw new Error(msg);
   }
-  return window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  return res.json();
 }
 
+// ---------- Init ------------------------------------------------------
+
 window.addEventListener("DOMContentLoaded", () => {
-  supabase = initSupabase();
   renderLobby();
 });
 
@@ -72,10 +75,8 @@ function renderLobby() {
   app.innerHTML = "";
   app.appendChild(tpl("tpl-lobby"));
 
-  const lastName = localStorage.getItem("ho.name") || "";
-  const lastCode = localStorage.getItem("ho.code") || "";
-  $("#nameInput").value = lastName;
-  $("#codeInput").value = lastCode;
+  $("#nameInput").value = localStorage.getItem("ho.name") || "";
+  $("#codeInput").value = localStorage.getItem("ho.code") || "";
 
   $("#newRoomBtn").addEventListener("click", () => {
     $("#codeInput").value = genCode();
@@ -88,12 +89,8 @@ function renderLobby() {
 
     const name = $("#nameInput").value.trim();
     const code = $("#codeInput").value.trim().toUpperCase();
-    if (!name || code.length !== 4) {
-      msg.textContent = "Need a name and a 4-letter code.";
-      return;
-    }
-    if (!supabase) {
-      msg.textContent = "Backend not configured. Paste keys into config.js.";
+    if (!name || !/^[A-HJ-NP-Z2-9]{4}$/.test(code)) {
+      msg.textContent = "Need a name and a 4-letter code (A-Z, 2-9, no I/O/0/1).";
       return;
     }
 
@@ -110,82 +107,54 @@ function renderLobby() {
 }
 
 async function joinRoom(name, code) {
-  // Upsert room
-  const { error: rErr } = await supabase
-    .from("rooms")
-    .upsert({ code }, { onConflict: "code" });
-  if (rErr) throw rErr;
-
-  // Upsert player (unique on room_code+name)
-  const { data: pData, error: pErr } = await supabase
-    .from("players")
-    .upsert(
-      { room_code: code, name, updated_at: new Date().toISOString() },
-      { onConflict: "room_code,name" }
-    )
-    .select()
-    .single();
-  if (pErr) throw pErr;
+  await api("POST", "/api/rooms", { code });
+  const { player, state: s } = await api("POST", `/api/rooms/${code}/join`, { name });
 
   state.name = name;
   state.code = code;
-  state.playerId = pData.id;
-  state.player = pData;
+  state.playerId = player.id;
+  state.player = player;
 
-  await refreshAll();
+  applyState(s);
   subscribeRealtime();
 }
 
 // ---------- Data ------------------------------------------------------
 
-async function refreshAll() {
-  const { data: players, error: pErr } = await supabase
-    .from("players")
-    .select("*")
-    .eq("room_code", state.code);
-  if (pErr) throw pErr;
-  state.players = players || [];
+function applyState(s) {
+  state.players = s.players || [];
   state.player = state.players.find(p => p.id === state.playerId) || state.player;
 
-  const ids = state.players.map(p => p.id);
-  if (ids.length) {
-    const { data: scores, error: sErr } = await supabase
-      .from("scores")
-      .select("*")
-      .in("player_id", ids);
-    if (sErr) throw sErr;
-    state.scoresByPlayer = {};
-    (scores || []).forEach(s => {
-      (state.scoresByPlayer[s.player_id] ||= []).push(s);
-    });
-  } else {
-    state.scoresByPlayer = {};
-  }
+  state.scoresByPlayer = {};
+  (s.scores || []).forEach(row => {
+    (state.scoresByPlayer[row.player_id] ||= []).push(row);
+  });
 
   state.scores = {};
-  (state.scoresByPlayer[state.playerId] || []).forEach(s => {
-    state.scores[s.hole_num] = s;
+  (state.scoresByPlayer[state.playerId] || []).forEach(r => {
+    state.scores[r.hole_num] = r;
   });
 }
 
-function subscribeRealtime() {
-  if (state.channel) supabase.removeChannel(state.channel);
-  state.channel = supabase
-    .channel(`room:${state.code}`)
-    .on("postgres_changes",
-      { event: "*", schema: "public", table: "players", filter: `room_code=eq.${state.code}` },
-      handleRealtime)
-    .on("postgres_changes",
-      { event: "*", schema: "public", table: "scores" },
-      handleRealtime)
-    .subscribe();
+async function refreshAll() {
+  const s = await api("GET", `/api/rooms/${state.code}`);
+  applyState(s);
 }
 
-async function handleRealtime() {
-  try {
-    await refreshAll();
-    rerenderActive();
-  } catch (e) { console.warn(e); }
+function subscribeRealtime() {
+  if (state.evt) state.evt.close();
+  const evt = new EventSource(`/api/rooms/${state.code}/stream`);
+  state.evt = evt;
+  const onUpdate = (e) => {
+    try {
+      const s = JSON.parse(e.data);
+      applyState(s);
+      rerenderActive();
+    } catch {}
+  };
+  evt.addEventListener("players", onUpdate);
+  evt.addEventListener("scores",  onUpdate);
+  evt.onerror = () => { /* browser auto-reconnects */ };
 }
 
 function rerenderActive() {
@@ -277,15 +246,19 @@ function renderPlay(hole) {
   const existing = state.scores[hole.num];
 
   let getValue = () => 0;
-  if (hole.type === "golf") getValue = mountGolf(body, hole, existing);
-  if (hole.type === "sips") getValue = mountSips(body, hole, existing);
+  if (hole.type === "golf")  getValue = mountGolf(body, hole, existing);
+  if (hole.type === "sips")  getValue = mountSips(body, hole, existing);
   if (hole.type === "timed") getValue = mountTimed(body, hole, existing);
 
   $("#saveBtn").addEventListener("click", async () => {
     const value = getValue();
     if (value == null) return;
-    await saveScore(hole, value);
-    switchTab("course");
+    try {
+      await saveScore(hole, value);
+      switchTab("course");
+    } catch (err) {
+      alert("Save failed: " + err.message);
+    }
   });
 }
 
@@ -381,18 +354,14 @@ function mountTimed(root, hole, existing) {
 // ---------- Save score ------------------------------------------------
 
 async function saveScore(hole, value) {
-  const row = {
+  await api("PUT", `/api/rooms/${state.code}/scores`, {
     player_id: state.playerId,
     hole_num:  hole.num,
     value:     value,
     total:     value,
     hole_type: hole.type,
     par:       hole.par
-  };
-  const { error } = await supabase
-    .from("scores")
-    .upsert(row, { onConflict: "player_id,hole_num" });
-  if (error) { console.error(error); alert("Save failed: " + error.message); return; }
+  });
   await refreshAll();
 }
 
@@ -465,17 +434,15 @@ function renderSettings() {
 }
 
 async function bumpPenalty(field, delta) {
-  const cur = state.player[field] || 0;
+  const cur = (state.player && state.player[field]) || 0;
   const next = Math.max(0, cur + delta);
   state.player[field] = next;
-  if (field === "pee_total")  $("#peeCount").textContent  = next;
-  if (field === "puke_total") $("#pukeCount").textContent = next;
+  if (field === "pee_total")  $("#peeCount") && ($("#peeCount").textContent  = next);
+  if (field === "puke_total") $("#pukeCount") && ($("#pukeCount").textContent = next);
 
-  const { error } = await supabase
-    .from("players")
-    .update({ [field]: next, updated_at: new Date().toISOString() })
-    .eq("id", state.playerId);
-  if (error) console.warn(error);
+  try {
+    await api("PUT", `/api/rooms/${state.code}/players/${state.playerId}`, { [field]: next });
+  } catch (e) { console.warn(e); }
 }
 
 function confirmPuke() {
@@ -488,8 +455,8 @@ function confirmPuke() {
 }
 
 function leaveRoom() {
-  if (state.channel) supabase.removeChannel(state.channel);
-  state.channel = null;
+  if (state.evt) state.evt.close();
+  state.evt = null;
   state.playerId = null;
   state.player = null;
   state.scores = {};
@@ -544,7 +511,6 @@ async function openCamera({ onCountdownDone, onStop }) {
     return () => {};
   }
 
-  // 3-2-1 countdown then start recording + timer simultaneously
   let n = 3;
   countEl.textContent = n;
   const tickCount = () => {
