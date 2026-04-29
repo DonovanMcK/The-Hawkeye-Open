@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#1f4d2e" />
+<title>The Hawkeye Open</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,800;1,600;1,800&family=IM+Fell+English:ital@0;1&family=Special+Elite&family=Bebas+Neue&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<!-- Paper noise overlay -->
+<svg class="noise-svg" aria-hidden="true">
+  <filter id="paperNoise">
+    <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" stitchTiles="stitch" />
+    <feColorMatrix type="matrix" values="0 0 0 0 0.12  0 0 0 0 0.10  0 0 0 0 0.08  0 0 0 0.55 0" />
+  </filter>
+  <rect width="100%" height="100%" filter="url(#paperNoise)" />
+</svg>
+
+<main id="app"></main>
+
+<!-- Templates -------------------------------------------------------- -->
+
+<template id="tpl-lobby">
+  <section class="cover">
+    <header class="cover__header">
+      <svg class="crest" viewBox="0 0 200 220" aria-hidden="true">
+        <!-- crown -->
+        <g fill="#b8893a" stroke="#1f4d2e" stroke-width="2">
+          <path d="M60 50 L75 25 L100 45 L125 25 L140 50 L135 70 L65 70 Z" />
+          <circle cx="75" cy="25" r="4"/>
+          <circle cx="100" cy="20" r="4"/>
+          <circle cx="125" cy="25" r="4"/>
+        </g>
+        <!-- crossed pints -->
+        <g stroke="#1f4d2e" stroke-width="3" fill="#f4ead5">
+          <g transform="rotate(-18 100 140)">
+            <path d="M70 90 L78 200 L112 200 L120 90 Z" />
+            <rect x="120" y="105" width="14" height="38" rx="3" fill="none" />
+            <path d="M70 110 Q95 100 120 110" fill="#b8893a" stroke="none" opacity="0.85"/>
+          </g>
+          <g transform="rotate(18 100 140)">
+            <path d="M70 90 L78 200 L112 200 L120 90 Z" />
+            <rect x="66" y="105" width="14" height="38" rx="3" fill="none" transform="scale(-1 1) translate(-146 0)"/>
+            <path d="M70 110 Q95 100 120 110" fill="#b8893a" stroke="none" opacity="0.85"/>
+          </g>
+        </g>
+      </svg>
+      <h1 class="cover__title">The Hawkeye Open</h1>
+      <p class="cover__sub">Iowa City Pub Golf · Invitational</p>
+      <div class="rule-double"></div>
+    </header>
+
+    <form id="lobbyForm" class="lobby">
+      <label class="field">
+        <span class="field__label">Player Name</span>
+        <input id="nameInput" name="name" required maxlength="20" autocomplete="off" />
+      </label>
+
+      <label class="field">
+        <span class="field__label">Room Code</span>
+        <input id="codeInput" name="code" required minlength="4" maxlength="4"
+               pattern="[A-HJ-NP-Z2-9]{4}" inputmode="text"
+               autocomplete="off" autocapitalize="characters" />
+      </label>
+
+      <button type="submit" class="btn btn--primary">Tee Off</button>
+      <button type="button" id="newRoomBtn" class="btn btn--ghost">Create New Room</button>
+
+      <p id="lobbyMsg" class="lobby__msg"></p>
+    </form>
+
+    <footer class="cover__foot">
+      <p class="typewriter">est. on a Tuesday in Iowa City</p>
+    </footer>
+  </section>
+</template>
+
+<template id="tpl-shell">
+  <header class="topbar">
+    <div class="topbar__inner">
+      <span class="topbar__title">The Hawkeye Open</span>
+      <span class="topbar__room" id="roomBadge"></span>
+    </div>
+    <div class="rule-double"></div>
+  </header>
+
+  <section id="view" class="view"></section>
+
+  <nav class="tabbar">
+    <button data-tab="course"  class="tab is-active">Course</button>
+    <button data-tab="board"   class="tab">Board</button>
+    <button data-tab="settings" class="tab">Settings</button>
+  </nav>
+</template>
+
+<template id="tpl-course">
+  <div class="course">
+    <h2 class="section-title">The Card</h2>
+    <p class="section-sub typewriter">12 holes · walking south from Old Capitol</p>
+    <ol id="holeList" class="holelist"></ol>
+  </div>
+</template>
+
+<template id="tpl-board">
+  <div class="board">
+    <h2 class="section-title">Leaderboard</h2>
+    <p class="section-sub typewriter">low score wins · live</p>
+    <ol id="boardList" class="boardlist"></ol>
+  </div>
+</template>
+
+<template id="tpl-settings">
+  <div class="settings">
+    <h2 class="section-title">Penalties</h2>
+    <p class="section-sub typewriter">applied to your total</p>
+
+    <div class="penalty-row">
+      <div class="penalty">
+        <span class="penalty__label">Pee · +2</span>
+        <div class="stepper">
+          <button class="stepper__btn" data-pee="-1">−</button>
+          <span id="peeCount" class="stepper__val">0</span>
+          <button class="stepper__btn" data-pee="1">+</button>
+        </div>
+      </div>
+      <div class="penalty penalty--red">
+        <span class="penalty__label">Puke · +5</span>
+        <div class="stepper">
+          <button class="stepper__btn" data-puke="-1">−</button>
+          <span id="pukeCount" class="stepper__val">0</span>
+          <button class="stepper__btn stepper__btn--red" id="pukeAdd">+</button>
+        </div>
+      </div>
+    </div>
+
+    <h2 class="section-title">Session</h2>
+    <p class="setting-line"><span class="typewriter">Player:</span> <strong id="setPlayer"></strong></p>
+    <p class="setting-line"><span class="typewriter">Room:</span> <strong id="setRoom"></strong></p>
+    <button id="leaveBtn" class="btn btn--danger">Leave Room</button>
+  </div>
+</template>
+
+<template id="tpl-play">
+  <div class="play">
+    <button class="back-btn" id="backBtn">‹ Course</button>
+    <div class="play__head">
+      <span class="hole-num" id="playHoleNum"></span>
+      <div>
+        <h2 class="play__bar" id="playBar"></h2>
+        <p class="play__addr typewriter" id="playAddr"></p>
+        <p class="play__drink" id="playDrink"></p>
+      </div>
+    </div>
+    <div class="play__meta">
+      <span class="badge" id="playType"></span>
+      <span class="par">PAR <strong id="playPar"></strong></span>
+    </div>
+
+    <div class="play__body" id="playBody"></div>
+
+    <button id="saveBtn" class="btn btn--primary btn--big">Save Score</button>
+  </div>
+</template>
+
+<template id="tpl-puke-confirm">
+  <div class="modal-backdrop">
+    <div class="modal">
+      <h3 class="modal__title">Are you sure?</h3>
+      <p class="modal__body typewriter">+5 strokes. No takebacks.</p>
+      <div class="modal__row">
+        <button class="btn btn--ghost" id="pukeCancel">Cancel</button>
+        <button class="btn btn--danger" id="pukeConfirm">Confirm</button>
+      </div>
+    </div>
+  </div>
+</template>
+
+<template id="tpl-camera">
+  <div class="camera">
+    <video id="camPreview" autoplay muted playsinline></video>
+    <div id="camCountdown" class="camera__count"></div>
+    <div class="camera__hud">
+      <div id="camTimer" class="camera__timer">0.0</div>
+      <button id="camStop" class="btn btn--danger" style="display:none">Stop &amp; Save</button>
+      <button id="camClose" class="camera__close" aria-label="Close">×</button>
+    </div>
+    <video id="camReplay" controls playsinline style="display:none"></video>
+  </div>
+</template>
+
+<!-- Scripts ----------------------------------------------------------- -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+[build]
+builder = "NIXPACKS"
+
+[deploy]
+startCommand = "npx serve -s . -l $PORT --no-clipboard"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3

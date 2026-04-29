@@ -1,0 +1,12 @@
+{
+  "name": "the-hawkeye-open",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Iowa City pub golf scorecard with live shared leaderboard.",
+  "scripts": {
+    "start": "serve -s . -l ${PORT:-3000} --no-clipboard"
+  },
+  "dependencies": {
+    "serve": "14.2.4"
+  }
+}
