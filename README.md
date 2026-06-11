@@ -42,7 +42,9 @@ Take over San Andreas. The city is split into **16 territories** owned by your g
 | R | Reload |
 | 1–9, mouse wheel, `[` / `]` | Switch weapons |
 | N or Tab | Full-screen city map (labeled territories + landmarks) |
-| B | Cycle radio stations (in a vehicle) |
+| B | Cycle radio stations (boombox — keeps playing on foot) |
+| T / Y | Emotes: taunt (aggros nearby rivals!) / dance |
+| Space / Shift or S | Helicopter: climb / descend |
 | M | Mute |
 | Esc | Pause |
 
@@ -92,6 +94,11 @@ Take over San Andreas. The city is split into **16 territories** owned by your g
 - **Skills:** Running, Shooting, and Driving improve with use (faster sprint, tighter
   spread, quicker acceleration) — check your levels on the pause screen.
 - **Dirt bike:** fast, agile two-wheeler that leans into turns; the rider stays visible.
+- **Helicopter:** parked at the Grove HQ pad (respawns there if destroyed). Space climbs,
+  Shift or S descends; fly above the skyline, land before exiting.
+- **Hospital:** walk into the red ring outside to fully heal for $50 (free if broke).
+- **Objective beacons:** tall red light beam marks the bounty target, yellow marks the
+  taxi fare dropoff — visible over buildings.
 - **Radio:** two synthesized lo-fi G-funk stations play in vehicles (N to switch/off).
 - **Hit feedback:** crosshair X markers on hits (red on kills) and a HEADSHOT tag.
 

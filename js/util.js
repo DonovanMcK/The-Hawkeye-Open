@@ -214,12 +214,17 @@
       case 'empty': this.blip(200, 0.04, 'square', 0.1); break;
       case 'hit': this.blip(950, 0.025, 'square', 0.1); break;
       case 'kill': this.blip(700, 0.05, 'square', 0.14); setTimeout(this.blip.bind(this, 460, 0.08, 'square', 0.14), 60); break;
+      case 'taunt': this.blip(520, 0.18, 'sawtooth', 0.25, 380); setTimeout(this.blip.bind(this, 420, 0.25, 'sawtooth', 0.25, 260), 200); break;
+      case 'dance': this.blip(523, 0.1, 'square', 0.2); setTimeout(this.blip.bind(this, 659, 0.1, 'square', 0.2), 110); setTimeout(this.blip.bind(this, 784, 0.16, 'square', 0.2), 220); break;
+      case 'heal': this.blip(523, 0.12, 'sine', 0.2); setTimeout(this.blip.bind(this, 784, 0.2, 'sine', 0.2), 130); break;
     }
   };
 
-  // lo-fi G-funk radio: 8-step sequencer (kick + hat + sine bass + square lead)
+  // lo-fi G-funk radio: 8-step sequencer (kick + snare + hat + sine bass + square lead).
+  // Boombox-style: keeps playing on foot once switched on.
   AudioEngine.prototype.setRadio = function (station) {
     this.radioStation = station;
+    this._radioOn = !!station;
     if (this._radioTimer) { clearInterval(this._radioTimer); this._radioTimer = null; }
     if (!this.ready || !station) return;
     var self = this, step = 0;
@@ -230,10 +235,11 @@
     this._radioTimer = setInterval(function () {
       if (self.muted) return;
       var i = step % 8;
-      if (i % 4 === 0) self.sub(45, 0.12, 0.2);
-      self.noise(0.025, 0.035, 'highpass', 6500);
-      if (pat.bass[i]) self.blip(pat.bass[i], stepDur * 0.9, 'sine', 0.14);
-      if (pat.lead[i]) self.blip(pat.lead[i], stepDur * 0.5, 'square', 0.035);
+      if (i % 4 === 0) self.sub(48, 0.14, 0.45);                       // kick
+      if (i % 4 === 2) self.noise(0.09, 0.16, 'bandpass', 1800, 1.5);  // snare
+      self.noise(0.025, 0.06, 'highpass', 6500);                       // hat
+      if (pat.bass[i]) self.blip(pat.bass[i], stepDur * 0.9, 'sine', 0.32);
+      if (pat.lead[i]) self.blip(pat.lead[i], stepDur * 0.5, 'square', 0.07);
       step++;
     }, stepDur * 1000);
   };

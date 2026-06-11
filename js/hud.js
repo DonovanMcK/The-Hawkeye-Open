@@ -326,6 +326,8 @@
     this.btn('btn-pause', function (d) { if (d) G.togglePause(); });
     this.btn('btn-map', function (d) { if (d) G.toggleMap(); });
     this.btn('btn-radio', function (d) { if (d) G.cycleRadio(); });
+    var emoteAlt = false;
+    this.btn('btn-emote', function (d) { if (d) { G.player.emote(emoteAlt ? 'dance' : 'taunt'); emoteAlt = !emoteAlt; } });
 
     function changed(e) { return e.changedTouches[0]; }
     function findTouch(e, id, inChanged) {

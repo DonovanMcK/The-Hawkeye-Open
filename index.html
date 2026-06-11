@@ -153,6 +153,7 @@
   #btn-pause { right:14px; top:90px; width:48px; height:48px; font-size:18px; }
   #btn-map { right:14px; top:148px; width:48px; height:48px; font-size:11px; }
   #btn-radio { right:14px; top:206px; width:48px; height:48px; font-size:16px; }
+  #btn-emote { right:14px; top:264px; width:48px; height:48px; font-size:18px; }
 
   @media (max-width:560px) {
     #hud-money { font-size:24px; } #hud-time { font-size:18px; } #hud-notify { font-size:20px; }
@@ -208,6 +209,7 @@
     <div id="btn-pause" class="tbtn">⏸</div>
     <div id="btn-map" class="tbtn">MAP</div>
     <div id="btn-radio" class="tbtn">♫</div>
+    <div id="btn-emote" class="tbtn">🕺</div>
   </div>
 
   <!-- start screen -->
@@ -215,7 +217,7 @@
     <h1>GROVE<br>WARS</h1>
     <h2>SAN ANDREAS STREETS</h2>
     <div class="go">CLICK / TAP TO START</div>
-    <div class="ctrls">WASD move · Mouse aim · LMB fire · RMB scope · Shift sprint · Space jump/handbrake · F enter car · G recruit/dismiss · R reload · 1-9 / wheel weapons · N or TAB map · B radio · M mute · Esc pause</div>
+    <div class="ctrls">WASD move · Mouse aim · LMB fire · RMB scope · Shift sprint · Space jump/handbrake · F enter car · G recruit · T/Y emotes · R reload · 1-9 weapons · N map · B radio · M mute · Esc pause<br>HELI: Space = up, Shift/S = down. Red beam = bounty target. Red ring at hospital heals.</div>
   </div>
 
   <!-- big message -->
@@ -226,7 +228,7 @@
     <h1>PAUSED</h1>
     <div id="pause-progress">TERRITORIES: 2 / 16</div>
     <div id="pause-stats" style="font-size:16px;color:#9fff9f;margin-bottom:1vh;"></div>
-    <div class="ctrls">WASD move · Mouse aim · LMB fire · RMB scope (sniper) · Shift sprint · Space jump / handbrake · F enter/exit vehicle · G recruit/dismiss homie · R reload · 1-9 or mouse wheel switch weapons · N or TAB full map · B radio · M mute · Esc pause<br>Walk into the yellow marker at AMMU-NATION to buy weapons. Kill 3 rivals in their turf to start a GANG WAR.</div>
+    <div class="ctrls">WASD move · Mouse aim · LMB fire · RMB scope (sniper) · Shift sprint · Space jump / handbrake · F enter/exit vehicle · G recruit/dismiss homie · T taunt · Y dance · R reload · 1-9 or wheel weapons · N or TAB full map · B radio · M mute · Esc pause<br>Yellow marker at AMMU-NATION = gun shop. Red ring at HOSPITAL = heal $50. Green ring at GROVE HQ = bounty missions (follow the red beam). The helicopter waits at the HQ pad: Space climbs, Shift or S descends. Kill 3 rivals in their turf to start a GANG WAR.</div>
     <div>
       <button id="pause-resume" class="menu-btn">RESUME</button>
       <button id="pause-mute" class="menu-btn">MUTE</button>
@@ -252,13 +254,13 @@
        The ?v= stamp must be bumped on every release so CDN proxies
        (e.g. githack) don't serve stale cached game code. -->
   <script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
-  <script src="js/util.js?v=4"></script>
-  <script src="js/config.js?v=4"></script>
-  <script src="js/city.js?v=4"></script>
-  <script src="js/peds.js?v=4"></script>
-  <script src="js/vehicles.js?v=4"></script>
-  <script src="js/player.js?v=4"></script>
-  <script src="js/hud.js?v=4"></script>
-  <script src="js/game.js?v=4"></script>
+  <script src="js/util.js?v=5"></script>
+  <script src="js/config.js?v=5"></script>
+  <script src="js/city.js?v=5"></script>
+  <script src="js/peds.js?v=5"></script>
+  <script src="js/vehicles.js?v=5"></script>
+  <script src="js/player.js?v=5"></script>
+  <script src="js/hud.js?v=5"></script>
+  <script src="js/game.js?v=5"></script>
 </body>
 </html>

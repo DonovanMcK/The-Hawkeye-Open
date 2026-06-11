@@ -8,6 +8,7 @@
     var grp = new THREE.Group();
     var bodyMat = new THREE.MeshLambertMaterial({ color: def.color });
     if (arch === 'bike') return buildBike(grp, bodyMat);
+    if (arch === 'heli') return buildHeli(grp, bodyMat);
     // low-poly silhouette: low full-length body + hood/trunk steps + cabin
     // with ANGLED windshields (the key PS2 car shape cue)
     var body = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.55, 4.6), bodyMat);
@@ -89,6 +90,28 @@
     return { group: grp, chassis: frame, wheels: wheels, lights: null, bodyMat: bodyMat };
   }
 
+  function buildHeli(grp, bodyMat) {
+    var body = new THREE.Mesh(G.facet(new THREE.SphereGeometry(1.3, 7, 6)), bodyMat);
+    body.scale.set(1, 0.78, 1.5); body.position.y = 1.5; grp.add(body);
+    var glass = new THREE.Mesh(G.facet(new THREE.SphereGeometry(0.72, 6, 5)), new THREE.MeshLambertMaterial({ color: 0x8fc8dd }));
+    glass.position.set(0, 1.62, 1.05); grp.add(glass);
+    var tail = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 3.4), bodyMat);
+    tail.position.set(0, 1.7, -2.6); grp.add(tail);
+    var fin = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.9, 0.5), bodyMat);
+    fin.position.set(0, 2.1, -4.1); grp.add(fin);
+    var rotorMat = new THREE.MeshLambertMaterial({ color: 0x222222 });
+    var rotor = new THREE.Mesh(new THREE.BoxGeometry(7.2, 0.07, 0.3), rotorMat);
+    rotor.position.y = 2.65; grp.add(rotor);
+    var tailRotor = new THREE.Mesh(new THREE.BoxGeometry(0.06, 1.1, 0.18), rotorMat);
+    tailRotor.position.set(0.2, 2.1, -4.1); grp.add(tailRotor);
+    var skidMat = new THREE.MeshLambertMaterial({ color: 0x444444 });
+    var skL = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.14, 2.6), skidMat); skL.position.set(-0.8, 0.3, 0); grp.add(skL);
+    var skR = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.14, 2.6), skidMat); skR.position.set(0.8, 0.3, 0); grp.add(skR);
+    var shadow = new THREE.Mesh(new THREE.PlaneGeometry(3, 5), new THREE.MeshBasicMaterial({ color: 0, transparent: true, opacity: 0.3, depthWrite: false }));
+    shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.04; grp.add(shadow);
+    return { group: grp, chassis: body, wheels: [], lights: null, bodyMat: bodyMat, rotor: rotor, tailRotor: tailRotor };
+  }
+
   function Vehicle() {
     this.active = false; this.mesh = null;
     this.arch = 'sedan'; this.x = 0; this.z = 0; this.angle = 0;
@@ -109,12 +132,15 @@
     this.driver = null; this.occupants = []; this.isPlayer = false;
     this.copCar = (arch === 'police'); this.unloaded = false;
     this.isBike = (arch === 'bike'); this.radius = this.isBike ? 0.9 : 1.6;
+    this.isHeli = (arch === 'heli'); this.y = 0;
+    if (this.isHeli) { this.radius = 2.2; this.control.climb = false; this.control.descend = false; }
     this.control.forward = 0; this.control.steer = 0; this.control.handbrake = false;
     this.aiDir = Math.round(this.angle / (Math.PI / 2)) * (Math.PI / 2);
     if (!this.mesh || this._arch !== arch) {
       if (this.mesh) G.scene.remove(this.mesh);
       var built = buildCar(arch);
       this.mesh = built.group; this.wheels = built.wheels; this.lights = built.lights; this.bodyMat = built.bodyMat;
+      this.rotor = built.rotor || null; this.tailRotor = built.tailRotor || null;
       this._origColor = G.VEHICLES[arch].color; this._arch = arch;
       G.scene.add(this.mesh);
     } else { this.mesh.visible = true; this.bodyMat.color.setHex(this._origColor); }
@@ -155,7 +181,7 @@
     }
     if (this.isPlayer) G.player.forceExit(true);
     this.occupants.length = 0; this.driver = null; this.isPlayer = false;
-    this.speed = 0; this.stopEngine();
+    this.speed = 0; this.y = 0; this.stopEngine();
   };
 
   Vehicle.prototype.update = function (dt) {
@@ -170,12 +196,15 @@
     if (this.lights) this._flashLights(dt);
     if (this.engine) {
       var f = U.clamp(Math.abs(this.speed) / this.maxSpeed, 0, 1);
-      this.engine.osc.frequency.value = 55 + f * 140;
-      this.engine.gain.gain.value = 0.04 + f * 0.05;
+      if (this.isHeli) f = Math.max(f, U.clamp(this.y / 30, 0, 1) * 0.6);
+      this.engine.osc.frequency.value = (this.isHeli ? 40 : 55) + f * 140;
+      // duck the engine under the radio so the music is audible
+      this.engine.gain.gain.value = (0.04 + f * 0.05) * (U.audio._radioOn ? 0.4 : 1);
     }
   };
 
   Vehicle.prototype._physics = function (dt) {
+    if (this.isHeli) { this._heliPhysics(dt); return; }
     var c = this.control;
     var max = this.maxSpeed;
     this.speed += c.forward * this.accel * dt;
@@ -213,6 +242,47 @@
     }
     // bike leans into turns
     if (this.isBike) this.mesh.rotation.z = -this.control.steer * U.clamp(Math.abs(this.speed) / this.maxSpeed, 0, 1) * 0.35;
+  };
+
+  // helicopter: yaw turning, vertical climb/sink, free flight above the skyline
+  Vehicle.prototype._heliPhysics = function (dt) {
+    var c = this.control, max = this.maxSpeed;
+    this.speed += c.forward * this.accel * dt;
+    this.speed = U.clamp(this.speed, -max * 0.3, max);
+    if (Math.abs(c.forward) < 0.01) this.speed *= (1 - 1.2 * dt);
+    if (Math.abs(this.speed) < 0.05) this.speed = 0;
+    this.angle += c.steer * 1.6 * dt;
+    // vertical: climb, dive, or settle slowly
+    if (c.climb) this.y += 9 * dt;
+    else if (c.descend) this.y -= 12 * dt;
+    else if (this.isPlayer) this.y -= 2.2 * dt;
+    else this.y -= 5 * dt; // abandoned helis settle
+    this.y = U.clamp(this.y, 0, 70);
+    var nx = this.x + Math.sin(this.angle) * this.speed * dt;
+    var nz = this.z + Math.cos(this.angle) * this.speed * dt;
+    // below the skyline, buildings still block; above it, free flight (world edge always)
+    if (this.y < 36) {
+      var res = G.city.collide(nx, nz, this.radius);
+      if (res.hit) {
+        var impact = Math.abs(this.speed);
+        this.takeDamage(impact * 0.5);
+        this.speed *= -0.2;
+        if (impact > 6) U.audio.sfx('crash');
+        nx = res.x; nz = res.z;
+      }
+    } else {
+      nx = U.clamp(nx, G.city.worldMin + 2, G.city.worldMax - 2);
+      nz = U.clamp(nz, G.city.worldMin + 2, G.city.worldMax - 2);
+    }
+    if (this.y < 2 && Math.abs(this.speed) > 5) this._runOverPeds(nx, nz);
+    if (this.y < 3) this._carCar(nx, nz);
+    this.x = nx; this.z = nz;
+    this.mesh.position.set(this.x, this.y, this.z);
+    this.mesh.rotation.y = this.angle;
+    this.mesh.rotation.x = U.clamp(this.speed / max, -1, 1) * 0.18; // nose-down at speed
+    var rpm = (this.isPlayer || this.y > 0.5) ? 18 : 2;
+    if (this.rotor) this.rotor.rotation.y += rpm * dt;
+    if (this.tailRotor) this.tailRotor.rotation.x += rpm * 1.5 * dt;
   };
 
   Vehicle.prototype._runOverPeds = function (nx, nz) {

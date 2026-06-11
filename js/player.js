@@ -51,7 +51,10 @@
   // arrest condition
   Player.prototype.arrestable = function () {
     if (!this.alive) return false;
-    if (this.inCar) return Math.abs(this.inCar.speed) < 2;
+    if (this.inCar) {
+      if (this.inCar.isHeli && this.inCar.y > 2) return false; // can't be arrested mid-air
+      return Math.abs(this.inCar.speed) < 2;
+    }
     return this.slot === 'fists';
   };
 
@@ -70,7 +73,7 @@
     car.isPlayer = false; car.driver = null;
     this.x = car.x + Math.cos(car.angle) * 3; this.z = car.z + Math.sin(car.angle) * 3;
     this.inCar = null; this.mesh.visible = true; this.mesh.rotation.z = 0;
-    car.stopEngine(); U.audio.setRadio(0);
+    car.stopEngine();
   };
 
   // ---------- input ----------
@@ -87,6 +90,8 @@
       if (e.code === 'KeyF') self.enterExit();
       if (e.code === 'KeyG') self.recruitAction();
       if (e.code === 'KeyR') self.reload();
+      if (e.code === 'KeyT') self.emote('taunt');
+      if (e.code === 'KeyY') self.emote('dance');
       if (e.code.indexOf('Digit') === 0) { var n = parseInt(e.code.slice(5), 10); if (n >= 1 && n <= 9) self.selectSlot(n); }
       if (e.code === 'BracketLeft') self.cycleWeapon(-1);
       if (e.code === 'BracketRight') self.cycleWeapon(1);
@@ -154,10 +159,15 @@
     var w = this.curWeapon(), a = this.curAmmo();
     this.fireCd -= dt; this.fireHeatCd -= dt;
     var wantFire = G.input.mouseDown || G.input.fireHeld;
-    // drive-by: only one-handed weapons from a vehicle
+    if (this.emoteT > 0) return;
+    // drive-by: one-handed weapons only — auto-switch so it just works
     if (this.inCar && w.id !== 'pistol' && w.id !== 'uzi') {
-      if (wantFire && U.audio.throttle('drivebyhint', 3000)) G.notify('DRIVE-BY: PISTOL OR UZI ONLY');
-      return;
+      if (!wantFire) return;
+      if (this.weapons.uzi.owned) this.slot = 'uzi';
+      else if (this.weapons.pistol.owned) this.slot = 'pistol';
+      else return;
+      w = this.curWeapon(); a = this.curAmmo();
+      if (U.audio.throttle('drivebyhint', 5000)) G.notify('DRIVE-BY: SWITCHED TO ' + w.name);
     }
     if (this.slot === 'minigun') {
       this.minigunSpin = wantFire ? Math.min(w.spinup, this.minigunSpin + dt) : Math.max(0, this.minigunSpin - dt * 2);
@@ -235,12 +245,13 @@
   };
   Player.prototype.exitCar = function () {
     var car = this.inCar; if (!car) return;
+    if (car.isHeli && car.y > 3) { G.notify('LAND FIRST (HOLD SHIFT)'); return; }
     var idx = car.occupants.indexOf(this); if (idx >= 0) car.occupants.splice(idx, 1);
     car.isPlayer = false; car.driver = null; car.stopEngine();
     this.x = car.x + Math.cos(car.angle) * 2.5; this.z = car.z + Math.sin(car.angle) * 2.5;
     this.inCar = null; this.mesh.visible = true;
     this.mesh.rotation.z = 0;
-    U.audio.setRadio(0);
+    // boombox: radio keeps playing on foot (B cycles it off)
     // drop recruits out
     for (var i = 0; i < car.occupants.length; i++) { var o = car.occupants[i]; if (o.recruit) { o.inCar = null; o.mesh.visible = true; o.x = car.x - Math.cos(car.angle) * 2; o.z = car.z - Math.sin(car.angle) * 2; } }
     car.occupants = car.occupants.filter(function (o) { return !o.recruit; });
@@ -279,6 +290,26 @@
     G.notify('HOMIE DISMISSED');
   };
 
+  // ---------- emotes ----------
+  Player.prototype.emote = function (type) {
+    if (this.inCar || !this.alive || this.emoteT > 0) return;
+    this.emoteType = type; this.emoteT = 2.4;
+    if (type === 'taunt') {
+      U.audio.sfx('taunt');
+      G.notify('"HEY! YEAH, YOU, FOOL!"');
+      // taunting aggros nearby rivals — careful where you flex
+      for (var i = 0; i < G.peds.length; i++) {
+        var p = G.peds[i];
+        if (p.active && p.alive && (p.team === 'ballas' || p.team === 'vagos') && U.dist(p.x, p.z, this.x, this.z) < 22) {
+          p.aggro = true; p.target = this; p.state = 'chase';
+        }
+      }
+    } else {
+      U.audio.sfx('dance');
+      G.notify("GETTIN' FUNKY");
+    }
+  };
+
   // ---------- update ----------
   Player.prototype.update = function (dt) {
     if (!this.alive) { this.updateCamera(dt); return; }
@@ -306,6 +337,7 @@
     var speed = this.sprint ? 9 * (1 + G.skills.run * 0.0015) : 5;
     if (this.sprint && mag > 0.01) G.skills.run = Math.min(100, G.skills.run + dt * 0.5);
     if (this.scoped || this.slot === 'minigun') speed *= 0.5;
+    if (mag > 0.05 && this.emoteT > 0) this.emoteT = 0; // moving cancels emotes
     if (mag > 0.01) {
       // movement relative to camera yaw; screen-right is world (-cos yaw, sin yaw)
       var fwd = { x: Math.sin(yaw), z: Math.cos(yaw) };
@@ -330,6 +362,26 @@
 
   Player.prototype._animateLimbs = function (dt, moving) {
     var p = this.parts;
+    if (this.emoteT > 0) {
+      this.emoteT -= dt;
+      var tt = performance.now() / 1000 * 8;
+      if (this.emoteType === 'taunt') {
+        // both arms up, waving
+        p.larmP.rotation.x = -Math.PI + Math.sin(tt) * 0.35;
+        p.rarmP.rotation.x = -Math.PI - Math.sin(tt) * 0.35;
+        p.llegP.rotation.x = 0; p.rlegP.rotation.x = 0;
+      } else {
+        // dance: alternating arms, bounce, hip wiggle
+        p.larmP.rotation.x = -Math.PI / 2 + Math.sin(tt) * 0.9;
+        p.rarmP.rotation.x = -Math.PI / 2 - Math.sin(tt) * 0.9;
+        p.llegP.rotation.x = Math.sin(tt * 0.5) * 0.3;
+        p.rlegP.rotation.x = -Math.sin(tt * 0.5) * 0.3;
+        this.mesh.position.y = this.y + Math.abs(Math.sin(tt)) * 0.18;
+        this.mesh.rotation.y = this.angle + Math.sin(tt * 0.5) * 0.25;
+      }
+      if (this.emoteT <= 0) this.mesh.position.y = this.y;
+      return;
+    }
     if (moving > 0.05) {
       var sw = Math.sin(this.walkPhase || 0) * 0.5;
       p.llegP.rotation.x = sw; p.rlegP.rotation.x = -sw;
@@ -351,7 +403,16 @@
     // negative steer turns toward screen-right in our heading convention;
     // driving skill adds up to +10% acceleration
     car.control.forward = fwd * (1 + G.skills.drive * 0.001); car.control.steer = -steer;
-    car.control.handbrake = (K['Space'] || G.input.brakeHeld);
+    if (car.isHeli) {
+      car.control.handbrake = false;
+      car.control.climb = !!(K['Space'] || G.input.brakeHeld);
+      // S / joystick-down doubles as descend so mobile can land too
+      car.control.descend = !!(K['ShiftLeft'] || K['ShiftRight'] || fwd < -0.3);
+      this.y = car.y;
+    } else {
+      car.control.handbrake = (K['Space'] || G.input.brakeHeld);
+      this.y = 0;
+    }
     if (Math.abs(car.speed) > 8) G.skills.drive = Math.min(100, G.skills.drive + dt * 0.6);
     // player follows car
     this.x = car.x; this.z = car.z; this.angle = car.angle;

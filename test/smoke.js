@@ -211,11 +211,24 @@ try {
     if (i === 450) { G.hud.openAmmu(); G.hud.buy('gun', 'deagle'); G.hud.buy('clip', 'pistol'); G.hud.closeAmmu(); }
     // win path: give all territories to grove and capture-check
     if (i === 500) { for (var w = 0; w < G.city.territories.length; w++) G.city.setTerritoryOwner(G.city.territories[w], 'grove'); G.onWin(); }
+    if (i === 505) { G.over = false; } // "keep playing"
+    // hospital heal
+    if (i === 510) { G.player.hp = 30; var hl = G.city.landmarks.hospital; G.player.x = hl.markerX; G.player.z = hl.markerZ; }
+    // helicopter: enter, climb, blocked exit, descend, land, exit
+    if (i === 515) { var hc = G.vehiclePool.acquire('heli', G.player.x + 2, G.player.z, 0); G.vehicles.push(hc); G.player.enterCar(hc); }
+    if (i >= 516 && i < 540) { G.input.keys['Space'] = true; G.input.keys['KeyW'] = true; }
+    if (i === 540) { G.input.keys['Space'] = false; G.__heliAlt = G.player.inCar ? G.player.inCar.y : -1; G.player.exitCar(); G.__exitBlocked = !!G.player.inCar; }
+    if (i >= 541 && i < 585) { G.input.keys['ShiftLeft'] = true; G.input.keys['KeyW'] = false; }
+    if (i === 585) { G.input.keys['ShiftLeft'] = false; if (G.player.inCar) G.player.exitCar(); }
+    // emotes
+    if (i === 588) { G.player.emote('taunt'); }
+    if (i === 595) { G.player.emote('dance'); }
     frame();
   }
 } catch (e) { fail('frame loop', e); }
 
 console.log('frames OK. money=' + Math.floor(G.money) + ' stars=' + G.stars + ' respect=' + G.respect + ' kills=' + G.kills + ' crew=' + G.crew.length + ' grove=' + G.groveCount() + ' won=' + G._won);
 console.log('features: rampageKills=' + G.rampage.kills + ' skills=' + JSON.stringify({ run: Math.floor(G.skills.run), shoot: Math.floor(G.skills.shoot), drive: Math.floor(G.skills.drive) }) + ' mission=' + (G.mission ? 'active' : 'done') + ' fare=' + (G.fare ? 'active' : 'none'));
+console.log('heli: alt=' + (G.__heliAlt && G.__heliAlt.toFixed ? G.__heliAlt.toFixed(1) : G.__heliAlt) + ' exitBlockedMidair=' + G.__exitBlocked + ' landedExit=' + !G.player.inCar + ' | hp=' + G.player.hp + '/' + G.player.maxHp + ' emoteType=' + G.player.emoteType);
 console.log('peds=' + G.peds.length + ' vehicles=' + G.vehicles.length + ' particles=' + G.particles.length + ' bullets=' + G.bullets.length);
 console.log('SMOKE TEST PASSED');

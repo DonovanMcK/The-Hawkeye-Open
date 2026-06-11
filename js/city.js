@@ -303,6 +303,14 @@
     var box = { minX: center.x - bw / 2, maxX: center.x + bw / 2, minZ: center.z - bd / 2, maxZ: center.z + bd / 2, top: bh };
     this._addToGrid(this.buildings.length, box); this.buildings.push(box);
     this.landmarks[type].x = center.x; this.landmarks[type].z = center.z;
+    // hospital red heal marker: walk in to restore health for $50
+    if (type === 'hospital') {
+      var hring = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.2, 6, 16, 1, true),
+        new THREE.MeshBasicMaterial({ color: 0xff3a3a, transparent: true, opacity: 0.35, side: THREE.DoubleSide }));
+      hring.position.set(center.x, 3, center.z + bd / 2 + 5);
+      group.add(hring);
+      this.landmarks.hospital.markerX = center.x; this.landmarks.hospital.markerZ = center.z + bd / 2 + 5;
+    }
     // ammu yellow marker (handled by pickups/game); store
     if (type === 'ammu') {
       var ring = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.2, 6, 16, 1, true),

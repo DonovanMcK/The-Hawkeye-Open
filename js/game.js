@@ -45,6 +45,21 @@
       G.hqMarker = { x: hqSafe.x, z: hqSafe.z, ring: hqRing };
     }
 
+    // helicopter parked at Grove HQ pad
+    if (G.hqMarker) {
+      var hp = city.collide(G.hqMarker.x + 10, G.hqMarker.z + 10, 2.4);
+      var heli = G.vehiclePool.acquire('heli', hp.x, hp.z, 0); G.vehicles.push(heli);
+    }
+
+    // objective sky beacons (tall translucent columns visible over buildings)
+    function makeBeacon(color) {
+      var m = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 1.4, 70, 8, 1, true),
+        new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0.22, side: THREE.DoubleSide, depthWrite: false }));
+      m.position.y = 35; m.visible = false; scene.add(m); return m;
+    }
+    G.beaconMission = makeBeacon(0xff2020);
+    G.beaconFare = makeBeacon(0xffe000);
+
     initPools();
     G.hud.init();
 
@@ -229,13 +244,16 @@
     var rivals = [];
     for (var i = 0; i < G.city.territories.length; i++) { var t = G.city.territories[i]; if (t.owner === 'ballas' || t.owner === 'vagos') rivals.push(t); }
     if (!rivals.length) return;
-    var pick = U.pick(rivals);
+    // nearest rival turf so the target is reachable, not across the map
+    rivals.sort(function (a, b) { return U.dist2(a.cx, a.cz, G.player.x, G.player.z) - U.dist2(b.cx, b.cz, G.player.x, G.player.z); });
+    var pick = rivals[0];
     var safe = G.city.collide(pick.cx + U.rand(-25, 25), pick.cz + U.rand(-25, 25), 0.6);
     var p = G.pedPool.acquire(pick.owner, safe.x, safe.z); G.peds.push(p);
     p.hp = p.maxHp = 250; p.weapon = 'deagle'; p.armed = true; p.melee = false;
     p.bounty = true; p.mesh.scale.set(1.18, 1.18, 1.18);
     G.mission = { target: p };
-    G.notify('BOUNTY: ELIMINATE THE ' + G.GANGS[pick.owner].name + ' LIEUTENANT'); U.audio.sfx('radio');
+    G.notify('BOUNTY: ELIMINATE THE ' + G.GANGS[pick.owner].name + ' LIEUTENANT');
+    G.notify('FOLLOW THE RED LIGHT BEAM'); U.audio.sfx('radio');
   };
   G.onBountyKilled = function (p) {
     if (!G.mission || G.mission.target !== p) return;
@@ -271,13 +289,40 @@
   }
 
   // =====================================================================
-  // RADIO
+  // RADIO (boombox: plays anywhere once on; B cycles 1 -> 2 -> off)
   // =====================================================================
   G.cycleRadio = function () {
     G.radioStation = (G.radioStation + 1) % 3;
-    U.audio.setRadio(G.player.inCar ? G.radioStation : 0);
+    U.audio.setRadio(G.radioStation);
     G.notify(G.radioStation ? 'RADIO: BOUNCE FM ' + G.radioStation : 'RADIO OFF');
   };
+
+  // =====================================================================
+  // HOSPITAL — walk into the red ring to heal ($50)
+  // =====================================================================
+  function checkHospital(dt) {
+    G._healCd = Math.max(0, (G._healCd || 0) - dt);
+    var lm = G.city.landmarks.hospital;
+    if (!lm || lm.markerX === undefined || G.player.inCar || G._healCd > 0) return;
+    if (G.player.hp >= G.player.maxHp) return;
+    if (U.dist(G.player.x, G.player.z, lm.markerX, lm.markerZ) < 2.5) {
+      var cost = Math.min(50, Math.floor(G.money));
+      G.money -= cost;
+      G.player.hp = G.player.maxHp;
+      G._healCd = 5;
+      U.audio.sfx('heal');
+      G.notify('PATCHED UP' + (cost ? ' — $' + cost : ' (ON THE HOUSE)'));
+    }
+  }
+
+  // beacons follow the active bounty target / fare dropoff
+  function updateBeacons() {
+    var m = G.mission && G.mission.target && G.mission.target.alive ? G.mission.target : null;
+    G.beaconMission.visible = !!m;
+    if (m) { G.beaconMission.position.x = m.x; G.beaconMission.position.z = m.z; }
+    G.beaconFare.visible = !!G.fare;
+    if (G.fare) { G.beaconFare.position.x = G.fare.x; G.beaconFare.position.z = G.fare.z; }
+  }
 
   // =====================================================================
   // COMBAT
@@ -592,6 +637,17 @@
         this.rampTimer = 90;
         if (!G.rampage.active) { var rp = this.randEdgePoint(25, 55); G.spawnPickup('rampage', rp.x, rp.z, 0); G.notify('RAMPAGE PICKUP NEARBY (RED)'); }
       }
+      // keep one helicopter in the world: respawn at the HQ pad if destroyed
+      this.heliTimer = (this.heliTimer === undefined ? 10 : this.heliTimer) - dt;
+      if (this.heliTimer <= 0) {
+        this.heliTimer = 20;
+        var hasHeli = false;
+        for (var h = 0; h < G.vehicles.length; h++) if (G.vehicles[h].active && G.vehicles[h].isHeli && !G.vehicles[h].wreck) { hasHeli = true; break; }
+        if (!hasHeli && G.hqMarker) {
+          var hp2 = G.city.collide(G.hqMarker.x + 10, G.hqMarker.z + 10, 2.4);
+          var nh = G.vehiclePool.acquire('heli', hp2.x, hp2.z, 0); G.vehicles.push(nh);
+        }
+      }
       // despawn far entities (not crew/cops/war/bounty)
       var fog = G.cfg.FOG_FAR + 30;
       for (var i = G.peds.length - 1; i >= 0; i--) {
@@ -602,7 +658,7 @@
       }
       for (var v = G.vehicles.length - 1; v >= 0; v--) {
         var ve = G.vehicles[v];
-        if (ve.active && !ve.wreck && !ve.isPlayer && !ve.copCar && U.dist(ve.x, ve.z, G.player.x, G.player.z) > fog) ve.despawn();
+        if (ve.active && !ve.wreck && !ve.isPlayer && !ve.copCar && !ve.isHeli && U.dist(ve.x, ve.z, G.player.x, G.player.z) > fog) ve.despawn();
       }
     },
   };
@@ -910,8 +966,10 @@
     G.player.update(dt);
     checkAmmu();
     checkHQ(dt);
+    checkHospital(dt);
     updateRampage(dt);
     updateFare(dt);
+    updateBeacons();
 
     // peds AI (throttle far)
     var px = G.player.x, pz = G.player.z;
