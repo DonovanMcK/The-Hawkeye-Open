@@ -1,199 +1,225 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<meta name="theme-color" content="#1f4d2e" />
-<title>The Hawkeye Open</title>
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,800;1,600;1,800&family=IM+Fell+English:ital@0;1&family=Special+Elite&family=Bebas+Neue&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="styles.css" />
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>GROVE WARS — San Andreas Streets</title>
+<style>
+  :root { --green:#5fd35f; --ghud:'Arial Narrow', Impact, 'Haettenschweiler', sans-serif; }
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { width:100%; height:100%; overflow:hidden; background:#000; font-family:'Arial Narrow', Impact, sans-serif; user-select:none; }
+  #game { position:absolute; inset:0; }
+  #game canvas { display:block; width:100%; height:100%; image-rendering:pixelated; image-rendering:crisp-edges; }
+
+  /* PS2 post overlay: scanlines + vignette */
+  #post { position:fixed; inset:0; pointer-events:none; z-index:30;
+    background:
+      repeating-linear-gradient(0deg, rgba(0,0,0,0.08) 0px, rgba(0,0,0,0.08) 1px, transparent 1px, transparent 3px),
+      radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(0,0,0,0.45) 100%); }
+
+  /* HUD */
+  #hud { position:fixed; inset:0; pointer-events:none; z-index:20; font-family:'Arial Narrow', Impact, sans-serif; }
+  .hud-text { font-weight:900; letter-spacing:1px; color:#fff; text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000, 0 2px 2px #000; }
+
+  #hud-topright { position:absolute; top:8px; right:10px; text-align:right; }
+  #hud-time { font-size:22px; }
+  #hud-money { font-size:30px; color:#2fd11a; }
+  #hud-stars { font-size:22px; line-height:1; margin:2px 0; }
+  #hud-stars .on { color:#ffd24a; text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000; }
+  #hud-stars .off { color:rgba(255,255,255,0.18); }
+  .bar-wrap { width:150px; height:11px; background:rgba(0,0,0,0.55); border:1px solid rgba(0,0,0,0.8); margin:3px 0 0 auto; overflow:hidden; }
+  .bar-wrap.thin { height:6px; }
+  .bar { height:100%; width:100%; }
+  #bar-health { background:linear-gradient(#ff7a4a,#e23a1a); }
+  #bar-armor  { background:linear-gradient(#e8e8e8,#9a9a9a); }
+  #bar-respect{ background:linear-gradient(#5fe05f,#2a9a2a); }
+  #bar-carhp  { background:linear-gradient(#ffd24a,#d18a1a); }
+  #hud-weapon { font-size:18px; margin-top:4px; }
+  #hud-ammo   { font-size:22px; color:#ffd24a; }
+  #hud-crew   { position:absolute; top:8px; left:10px; font-size:20px; color:#9fff9f; }
+
+  #hud-carhp-wrap { position:absolute; top:36px; left:10px; display:none; }
+  #hud-carhp-wrap .lbl { font-size:13px; }
+
+  /* radar */
+  #radar-wrap { position:absolute; bottom:12px; left:12px; width:160px; height:160px; }
+  #radar { width:160px; height:160px; image-rendering:pixelated; }
+
+  /* notifications */
+  #hud-notify { position:absolute; bottom:24px; left:50%; transform:translateX(-50%); text-align:center;
+    font-size:26px; font-weight:900; letter-spacing:1px; color:#fff;
+    text-shadow:-2px -2px 0 #000,2px -2px 0 #000,-2px 2px 0 #000,2px 2px 0 #000; line-height:1.15; }
+
+  /* scope overlay */
+  #scope { position:fixed; inset:0; z-index:25; display:none; pointer-events:none;
+    background:radial-gradient(circle at center, transparent 0, transparent 28vh, rgba(0,0,0,0.97) 28.5vh);
+  }
+  #scope:before { content:''; position:absolute; left:50%; top:0; width:1px; height:100%; background:rgba(0,0,0,0.7); }
+  #scope:after  { content:''; position:absolute; top:50%; left:0; height:1px; width:100%; background:rgba(0,0,0,0.7); }
+
+  /* crosshair */
+  #crosshair { position:fixed; left:50%; top:50%; width:14px; height:14px; transform:translate(-50%,-50%); z-index:18; pointer-events:none; }
+  #crosshair:before,#crosshair:after { content:''; position:absolute; background:rgba(255,255,255,0.8); box-shadow:0 0 0 1px rgba(0,0,0,0.6); }
+  #crosshair:before { left:6px; top:0; width:2px; height:14px; }
+  #crosshair:after { top:6px; left:0; height:2px; width:14px; }
+
+  /* start screen */
+  #start { position:fixed; inset:0; z-index:50; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background:radial-gradient(ellipse at center,#13201a 0,#05080c 100%); color:#fff; cursor:pointer; text-align:center;
+    background-image: repeating-linear-gradient(0deg, rgba(0,0,0,0.10) 0, rgba(0,0,0,0.10) 1px, transparent 1px, transparent 3px); }
+  #start h1 { font-size:13vw; font-weight:900; letter-spacing:2px; color:#5fd35f;
+    text-shadow:0 0 18px rgba(95,211,95,0.5), 4px 4px 0 #1a3a1a; line-height:0.95; }
+  #start h2 { font-size:4vw; color:#ffd24a; margin-top:4px; letter-spacing:3px; }
+  #start .go { font-size:5vw; margin-top:6vh; animation:blink 1s steps(2) infinite; }
+  #start .ctrls { font-size:2.2vw; color:#bbb; margin-top:4vh; max-width:80%; line-height:1.5; }
+  @keyframes blink { 50% { opacity:0.25; } }
+
+  /* big message (busted/wasted) */
+  #bigmsg { position:fixed; inset:0; z-index:45; display:none; flex-direction:column; align-items:center; justify-content:center;
+    background:rgba(0,0,0,0.78); transition:opacity 0.5s; }
+  #bigmsg .big { font-family:Georgia,'Times New Roman',serif; font-size:13vw; font-weight:900; font-style:italic;
+    text-shadow:3px 3px 0 #000; letter-spacing:2px; }
+  #bigmsg .bigsub { font-size:3vw; color:#ddd; margin-top:1vh; }
+
+  /* victory */
+  #victory { position:fixed; inset:0; z-index:48; display:none; flex-direction:column; align-items:center; justify-content:center;
+    background:radial-gradient(ellipse at center,#1a3a1a 0,#04080c 100%); color:#fff; text-align:center; }
+  #victory h1 { font-size:7vw; color:#5fd35f; font-weight:900; text-shadow:0 0 20px rgba(95,211,95,0.6); }
+  #victory-stats { font-size:3vw; color:#ffd24a; margin:3vh 0; }
+  #victory-continue, .menu-btn { pointer-events:auto; font-family:inherit; font-weight:900; font-size:20px; letter-spacing:1px;
+    background:#2a7a2a; color:#fff; border:2px solid #5fd35f; padding:10px 22px; cursor:pointer; margin:6px; }
+  .menu-btn:hover, #victory-continue:hover { background:#3a9a3a; }
+
+  /* pause */
+  #pause { position:fixed; inset:0; z-index:46; display:none; flex-direction:column; align-items:center; justify-content:center;
+    background:rgba(4,8,6,0.9); color:#fff; text-align:center; }
+  #pause h1 { font-size:7vw; color:#5fd35f; font-weight:900; }
+  #pause .ctrls { font-size:16px; color:#cfcfcf; max-width:560px; line-height:1.6; margin:2vh 0; }
+  #pause-progress { font-size:22px; color:#ffd24a; margin:1vh 0; }
+
+  /* ammu menu */
+  #ammu { position:fixed; inset:0; z-index:47; display:none; flex-direction:column; align-items:center; justify-content:center;
+    background:rgba(8,6,4,0.92); color:#fff; }
+  #ammu h1 { font-size:42px; color:#ffd24a; font-weight:900; letter-spacing:2px; }
+  #ammu-body { width:min(560px,92vw); margin-top:14px; }
+  .ammu-money { font-size:24px; color:#2fd11a; margin-bottom:8px; text-align:center; }
+  .ammu-row { display:flex; align-items:center; gap:8px; padding:6px 8px; border-bottom:1px solid rgba(255,255,255,0.12); }
+  .ammu-row .an { flex:1; font-size:18px; font-weight:900; }
+  .ammu-row .ad { width:64px; font-size:13px; color:#aaa; }
+  .ammu-row button { font-family:inherit; font-weight:900; background:#333; color:#fff; border:1px solid #777; padding:6px 10px; cursor:pointer; font-size:13px; }
+  .ammu-row button:hover { background:#555; } .ammu-row button:disabled { opacity:0.35; cursor:default; }
+  #ammu .menu-btn { margin-top:14px; }
+
+  /* touch controls */
+  body.touch #crosshair { display:none; }
+  #touch { position:fixed; inset:0; z-index:22; display:none; pointer-events:none; }
+  #aim-zone { position:absolute; right:0; top:0; width:55%; height:100%; pointer-events:auto; }
+  #joystick { position:absolute; left:18px; bottom:18px; width:130px; height:130px; border-radius:50%;
+    background:rgba(255,255,255,0.10); border:2px solid rgba(255,255,255,0.3); pointer-events:auto; }
+  #joy-knob { position:absolute; left:40px; top:40px; width:50px; height:50px; border-radius:50%;
+    background:rgba(255,255,255,0.4); }
+  .tbtn { position:absolute; pointer-events:auto; display:flex; align-items:center; justify-content:center;
+    border-radius:50%; background:rgba(0,0,0,0.32); border:2px solid rgba(255,255,255,0.4); color:#fff;
+    font-weight:900; font-size:15px; letter-spacing:0.5px; }
+  .tbtn.pressed { background:rgba(255,255,255,0.4); }
+  #btn-fire { right:24px; bottom:120px; width:96px; height:96px; font-size:18px; background:rgba(180,40,40,0.4); border-color:#ff6a6a; }
+  #btn-jump { right:130px; bottom:34px; width:70px; height:70px; }
+  #btn-enter { right:30px; bottom:24px; width:74px; height:74px; font-size:12px; }
+  #btn-recruit { right:120px; bottom:130px; width:64px; height:64px; font-size:12px; }
+  #btn-prev { left:160px; bottom:30px; width:54px; height:54px; }
+  #btn-next { left:220px; bottom:30px; width:54px; height:54px; }
+  #btn-pause { right:14px; top:90px; width:48px; height:48px; font-size:18px; }
+
+  @media (max-width:560px) {
+    #hud-money { font-size:24px; } #hud-time { font-size:18px; } #hud-notify { font-size:20px; }
+    #radar-wrap, #radar { width:120px; height:120px; }
+  }
+</style>
 </head>
 <body>
+  <div id="game"></div>
+  <div id="crosshair"></div>
 
-<!-- Paper noise overlay -->
-<svg class="noise-svg" aria-hidden="true">
-  <filter id="paperNoise">
-    <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" stitchTiles="stitch" />
-    <feColorMatrix type="matrix" values="0 0 0 0 0.12  0 0 0 0 0.10  0 0 0 0 0.08  0 0 0 0.55 0" />
-  </filter>
-  <rect width="100%" height="100%" filter="url(#paperNoise)" />
-</svg>
-
-<main id="app"></main>
-
-<!-- Templates -------------------------------------------------------- -->
-
-<template id="tpl-lobby">
-  <section class="cover">
-    <header class="cover__header">
-      <svg class="crest" viewBox="0 0 200 220" aria-hidden="true">
-        <!-- crown -->
-        <g fill="#b8893a" stroke="#1f4d2e" stroke-width="2">
-          <path d="M60 50 L75 25 L100 45 L125 25 L140 50 L135 70 L65 70 Z" />
-          <circle cx="75" cy="25" r="4"/>
-          <circle cx="100" cy="20" r="4"/>
-          <circle cx="125" cy="25" r="4"/>
-        </g>
-        <!-- crossed pints -->
-        <g stroke="#1f4d2e" stroke-width="3" fill="#f4ead5">
-          <g transform="rotate(-18 100 140)">
-            <path d="M70 90 L78 200 L112 200 L120 90 Z" />
-            <rect x="120" y="105" width="14" height="38" rx="3" fill="none" />
-            <path d="M70 110 Q95 100 120 110" fill="#b8893a" stroke="none" opacity="0.85"/>
-          </g>
-          <g transform="rotate(18 100 140)">
-            <path d="M70 90 L78 200 L112 200 L120 90 Z" />
-            <rect x="66" y="105" width="14" height="38" rx="3" fill="none" transform="scale(-1 1) translate(-146 0)"/>
-            <path d="M70 110 Q95 100 120 110" fill="#b8893a" stroke="none" opacity="0.85"/>
-          </g>
-        </g>
-      </svg>
-      <h1 class="cover__title">The Hawkeye Open</h1>
-      <p class="cover__sub">Iowa City Pub Golf · Invitational</p>
-      <div class="rule-double"></div>
-    </header>
-
-    <form id="lobbyForm" class="lobby">
-      <label class="field">
-        <span class="field__label">Player Name</span>
-        <input id="nameInput" name="name" required maxlength="20" autocomplete="off" />
-      </label>
-
-      <label class="field">
-        <span class="field__label">Room Code</span>
-        <input id="codeInput" name="code" required minlength="4" maxlength="4"
-               pattern="[A-HJ-NP-Z2-9]{4}" inputmode="text"
-               autocomplete="off" autocapitalize="characters" />
-      </label>
-
-      <button type="submit" class="btn btn--primary">Tee Off</button>
-      <button type="button" id="newRoomBtn" class="btn btn--ghost">Create New Room</button>
-
-      <p id="lobbyMsg" class="lobby__msg"></p>
-    </form>
-
-    <footer class="cover__foot">
-      <p class="typewriter">est. on a Tuesday in Iowa City</p>
-    </footer>
-  </section>
-</template>
-
-<template id="tpl-shell">
-  <header class="topbar">
-    <div class="topbar__inner">
-      <span class="topbar__title">The Hawkeye Open</span>
-      <span class="topbar__room" id="roomBadge"></span>
+  <!-- HUD -->
+  <div id="hud">
+    <div id="hud-crew" class="hud-text">● 0</div>
+    <div id="hud-carhp-wrap"><div class="lbl hud-text">VEHICLE</div><div class="bar-wrap"><div id="bar-carhp" class="bar"></div></div></div>
+    <div id="hud-topright">
+      <div id="hud-time" class="hud-text">08:00</div>
+      <div id="hud-money" class="hud-text">$00000000</div>
+      <div id="hud-stars"></div>
+      <div class="bar-wrap"><div id="bar-health" class="bar"></div></div>
+      <div class="bar-wrap" id="bar-armor-wrap" style="display:none"><div id="bar-armor" class="bar"></div></div>
+      <div class="bar-wrap thin"><div id="bar-respect" class="bar" style="width:0%"></div></div>
+      <div id="hud-weapon" class="hud-text">PISTOL</div>
+      <div id="hud-ammo" class="hud-text">17 / 60</div>
     </div>
-    <div class="rule-double"></div>
-  </header>
-
-  <section id="view" class="view"></section>
-
-  <nav class="tabbar">
-    <button data-tab="course"  class="tab is-active">Course</button>
-    <button data-tab="board"   class="tab">Board</button>
-    <button data-tab="settings" class="tab">Settings</button>
-  </nav>
-</template>
-
-<template id="tpl-course">
-  <div class="course">
-    <h2 class="section-title">The Card</h2>
-    <p class="section-sub typewriter">12 holes · walking south from Old Capitol</p>
-    <ol id="holeList" class="holelist"></ol>
+    <div id="radar-wrap"><canvas id="radar" width="160" height="160"></canvas></div>
+    <div id="hud-notify"></div>
   </div>
-</template>
 
-<template id="tpl-board">
-  <div class="board">
-    <h2 class="section-title">Leaderboard</h2>
-    <p class="section-sub typewriter">low score wins · live</p>
-    <ol id="boardList" class="boardlist"></ol>
+  <div id="scope"></div>
+  <div id="post"></div>
+
+  <!-- touch controls -->
+  <div id="touch">
+    <div id="aim-zone"></div>
+    <div id="joystick"><div id="joy-knob"></div></div>
+    <div id="btn-fire" class="tbtn">FIRE</div>
+    <div id="btn-jump" class="tbtn">JMP/BRK</div>
+    <div id="btn-enter" class="tbtn">ENTER</div>
+    <div id="btn-recruit" class="tbtn">CREW</div>
+    <div id="btn-prev" class="tbtn">◀</div>
+    <div id="btn-next" class="tbtn">▶</div>
+    <div id="btn-pause" class="tbtn">⏸</div>
   </div>
-</template>
 
-<template id="tpl-settings">
-  <div class="settings">
-    <h2 class="section-title">Penalties</h2>
-    <p class="section-sub typewriter">applied to your total</p>
-
-    <div class="penalty-row">
-      <div class="penalty">
-        <span class="penalty__label">Pee · +2</span>
-        <div class="stepper">
-          <button class="stepper__btn" data-pee="-1">−</button>
-          <span id="peeCount" class="stepper__val">0</span>
-          <button class="stepper__btn" data-pee="1">+</button>
-        </div>
-      </div>
-      <div class="penalty penalty--red">
-        <span class="penalty__label">Puke · +5</span>
-        <div class="stepper">
-          <button class="stepper__btn" data-puke="-1">−</button>
-          <span id="pukeCount" class="stepper__val">0</span>
-          <button class="stepper__btn stepper__btn--red" id="pukeAdd">+</button>
-        </div>
-      </div>
-    </div>
-
-    <h2 class="section-title">Session</h2>
-    <p class="setting-line"><span class="typewriter">Player:</span> <strong id="setPlayer"></strong></p>
-    <p class="setting-line"><span class="typewriter">Room:</span> <strong id="setRoom"></strong></p>
-    <button id="leaveBtn" class="btn btn--danger">Leave Room</button>
+  <!-- start screen -->
+  <div id="start">
+    <h1>GROVE<br>WARS</h1>
+    <h2>SAN ANDREAS STREETS</h2>
+    <div class="go">CLICK / TAP TO START</div>
+    <div class="ctrls">WASD move · Mouse aim · LMB fire · RMB scope · Shift sprint · Space jump/handbrake · F enter car · G recruit/dismiss · R reload · 1-9 / wheel weapons · M mute · Esc pause</div>
   </div>
-</template>
 
-<template id="tpl-play">
-  <div class="play">
-    <button class="back-btn" id="backBtn">‹ Course</button>
-    <div class="play__head">
-      <span class="hole-num" id="playHoleNum"></span>
-      <div>
-        <h2 class="play__bar" id="playBar"></h2>
-        <p class="play__addr typewriter" id="playAddr"></p>
-        <p class="play__drink" id="playDrink"></p>
-      </div>
-    </div>
-    <div class="play__meta">
-      <span class="badge" id="playType"></span>
-      <span class="par">PAR <strong id="playPar"></strong></span>
-    </div>
+  <!-- big message -->
+  <div id="bigmsg"></div>
 
-    <div class="play__body" id="playBody"></div>
-
-    <button id="saveBtn" class="btn btn--primary btn--big">Save Score</button>
-  </div>
-</template>
-
-<template id="tpl-puke-confirm">
-  <div class="modal-backdrop">
-    <div class="modal">
-      <h3 class="modal__title">Are you sure?</h3>
-      <p class="modal__body typewriter">+5 strokes. No takebacks.</p>
-      <div class="modal__row">
-        <button class="btn btn--ghost" id="pukeCancel">Cancel</button>
-        <button class="btn btn--danger" id="pukeConfirm">Confirm</button>
-      </div>
+  <!-- pause -->
+  <div id="pause">
+    <h1>PAUSED</h1>
+    <div id="pause-progress">TERRITORIES: 2 / 16</div>
+    <div class="ctrls">WASD move · Mouse aim · LMB fire · RMB scope (sniper) · Shift sprint · Space jump / handbrake · F enter/exit vehicle · G recruit/dismiss homie · R reload · 1-9 or mouse wheel switch weapons · M mute · Esc pause<br>Walk into the yellow marker at AMMU-NATION to buy weapons. Kill 3 rivals in their turf to start a GANG WAR.</div>
+    <div>
+      <button id="pause-resume" class="menu-btn">RESUME</button>
+      <button id="pause-mute" class="menu-btn">MUTE</button>
+      <button id="pause-restart" class="menu-btn">RESTART</button>
     </div>
   </div>
-</template>
 
-<template id="tpl-camera">
-  <div class="camera">
-    <video id="camPreview" autoplay muted playsinline></video>
-    <div id="camCountdown" class="camera__count"></div>
-    <div class="camera__hud">
-      <div id="camTimer" class="camera__timer">0.0</div>
-      <button id="camStop" class="btn btn--danger" style="display:none">Stop &amp; Save</button>
-      <button id="camClose" class="camera__close" aria-label="Close">×</button>
-    </div>
-    <video id="camReplay" controls playsinline style="display:none"></video>
+  <!-- ammu menu -->
+  <div id="ammu">
+    <h1>AMMU-NATION</h1>
+    <div id="ammu-body"></div>
+    <button class="menu-btn" onclick="window.G.hud.closeAmmu()">LEAVE STORE</button>
   </div>
-</template>
 
-<!-- Scripts ----------------------------------------------------------- -->
-<script src="app.js"></script>
+  <!-- victory -->
+  <div id="victory">
+    <h1>YOU OWN THE STREETS<br>SAN ANDREAS IS YOURS</h1>
+    <div id="victory-stats"></div>
+    <button id="victory-continue" class="menu-btn">KEEP PLAYING</button>
+  </div>
+
+  <!-- scripts: exact load order (classic, non-module) -->
+  <script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
+  <script src="js/util.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/city.js"></script>
+  <script src="js/peds.js"></script>
+  <script src="js/vehicles.js"></script>
+  <script src="js/player.js"></script>
+  <script src="js/hud.js"></script>
+  <script src="js/game.js"></script>
 </body>
 </html>
