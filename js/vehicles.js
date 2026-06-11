@@ -8,23 +8,48 @@
     var grp = new THREE.Group();
     var bodyMat = new THREE.MeshLambertMaterial({ color: def.color });
     if (arch === 'bike') return buildBike(grp, bodyMat);
-    var chassis = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.8, 4.4), bodyMat);
-    chassis.position.y = 0.7; grp.add(chassis);
-    var cabinMat = new THREE.MeshLambertMaterial({ color: (def.color === 0xf1c40f) ? 0x222222 : 0x222a33 });
-    var cabin = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.7, 2.2), cabinMat);
-    cabin.position.set(0, 1.35, -0.2); grp.add(cabin);
-    // windshield tint strip
-    var glass = new THREE.Mesh(new THREE.BoxGeometry(1.95, 0.5, 0.1), new THREE.MeshLambertMaterial({ color: 0x88ccdd }));
-    glass.position.set(0, 1.35, 0.95); grp.add(glass);
-    // wheels
+    // low-poly silhouette: low full-length body + hood/trunk steps + cabin
+    // with ANGLED windshields (the key PS2 car shape cue)
+    var body = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.55, 4.6), bodyMat);
+    body.position.y = 0.72; grp.add(body);
+    var hood = new THREE.Mesh(new THREE.BoxGeometry(2.05, 0.28, 1.25), bodyMat);
+    hood.position.set(0, 1.05, 1.55); grp.add(hood);
+    var trunk = new THREE.Mesh(new THREE.BoxGeometry(2.05, 0.26, 0.95), bodyMat);
+    trunk.position.set(0, 1.04, -1.75); grp.add(trunk);
+    var cabinMat = new THREE.MeshLambertMaterial({ color: (def.color === 0xf1c40f) ? 0x2a2a2a : 0x232b35 });
+    var cabin = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.55, 1.8), cabinMat);
+    cabin.position.set(0, 1.46, -0.25); grp.add(cabin);
+    var glassMat = new THREE.MeshLambertMaterial({ color: 0x8fc8dd });
+    var ws = new THREE.Mesh(new THREE.PlaneGeometry(1.72, 0.78), glassMat);
+    ws.position.set(0, 1.42, 0.92); ws.rotation.x = -0.55; grp.add(ws);   // raked windshield
+    var rw = new THREE.Mesh(new THREE.PlaneGeometry(1.72, 0.7), glassMat);
+    rw.position.set(0, 1.42, -1.42); rw.rotation.x = Math.PI + 0.5; grp.add(rw); // sloped rear glass
+    var sideMat = new THREE.MeshLambertMaterial({ color: 0x8fc8dd });
+    var sgL = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.45), sideMat);
+    sgL.position.set(-0.91, 1.5, -0.25); sgL.rotation.y = -Math.PI / 2; grp.add(sgL);
+    var sgR = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.45), sideMat);
+    sgR.position.set(0.91, 1.5, -0.25); sgR.rotation.y = Math.PI / 2; grp.add(sgR);
+    // bumpers
+    var bumpMat = new THREE.MeshLambertMaterial({ color: 0x3a3a3a });
+    var bf = new THREE.Mesh(new THREE.BoxGeometry(2.25, 0.22, 0.25), bumpMat);
+    bf.position.set(0, 0.5, 2.35); grp.add(bf);
+    var bb = new THREE.Mesh(new THREE.BoxGeometry(2.25, 0.22, 0.25), bumpMat);
+    bb.position.set(0, 0.5, -2.35); grp.add(bb);
+    // taxi roof sign
+    if (arch === 'taxi') {
+      var sign = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.22, 0.3), new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0xffe9a0, emissiveIntensity: 0.4 }));
+      sign.position.set(0, 1.85, -0.25); grp.add(sign);
+    }
+    // wheels (faceted for the chunky look)
     var wMat = new THREE.MeshLambertMaterial({ color: 0x111111 });
     var wheels = [];
     var wp = [[-1.05, 1.5], [1.05, 1.5], [-1.05, -1.5], [1.05, -1.5]];
+    var wheelGeo = G.facet(new THREE.CylinderGeometry(0.48, 0.48, 0.32, 8));
     for (var i = 0; i < 4; i++) {
       var wg = new THREE.Group();
-      var w = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.35, 8), wMat);
+      var w = new THREE.Mesh(wheelGeo, wMat);
       w.rotation.z = Math.PI / 2; wg.add(w);
-      wg.position.set(wp[i][0], 0.5, wp[i][1]); grp.add(wg); wheels.push(wg);
+      wg.position.set(wp[i][0], 0.48, wp[i][1]); grp.add(wg); wheels.push(wg);
     }
     // blob shadow
     var shadow = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 4.8), new THREE.MeshBasicMaterial({ color: 0, transparent: true, opacity: 0.3, depthWrite: false }));
@@ -39,7 +64,7 @@
       lb.position.set(0.4, 1.85, 0); lights.add(lb);
       grp.add(lights);
     }
-    return { group: grp, chassis: chassis, wheels: wheels, lights: lights, bodyMat: bodyMat };
+    return { group: grp, chassis: body, wheels: wheels, lights: lights, bodyMat: bodyMat };
   }
 
   function buildBike(grp, bodyMat) {
@@ -52,9 +77,10 @@
     var wMat = new THREE.MeshLambertMaterial({ color: 0x111111 });
     var wheels = [];
     var wp = [1.0, -1.0];
+    var bwGeo = G.facet(new THREE.CylinderGeometry(0.45, 0.45, 0.22, 8));
     for (var i = 0; i < 2; i++) {
       var wg = new THREE.Group();
-      var w = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.22, 8), wMat);
+      var w = new THREE.Mesh(bwGeo, wMat);
       w.rotation.z = Math.PI / 2; wg.add(w);
       wg.position.set(0, 0.45, wp[i]); grp.add(wg); wheels.push(wg);
     }

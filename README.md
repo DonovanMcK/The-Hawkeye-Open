@@ -41,8 +41,8 @@ Take over San Andreas. The city is split into **16 territories** owned by your g
 | G | Recruit a nearby Grove homie / dismiss (when looking at a recruit) |
 | R | Reload |
 | 1–9, mouse wheel, `[` / `]` | Switch weapons |
-| Tab | Full-screen city map (labeled territories + landmarks) |
-| N | Cycle radio stations (in a vehicle) |
+| N or Tab | Full-screen city map (labeled territories + landmarks) |
+| B | Cycle radio stations (in a vehicle) |
 | M | Mute |
 | Esc | Pause |
 
@@ -107,8 +107,11 @@ Take over San Andreas. The city is split into **16 territories** owned by your g
 - **No shadow maps** — every character and car gets a fake dark "blob" shadow instead.
 - **Characters are low-poly faceted humans** (tapered limbs, shoulders, neck, faceted
   head) rather than plain boxes — closer to real PS2-era models.
-- **Playability tuning:** the player starts with a bulletproof vest and 150 HP, and only
-  ~20% of attacked civilians fight back (down from the spec's 40%).
+- **Playability tuning:** the player starts with a bulletproof vest, 150 HP, and both a
+  Pistol and a Micro-Uzi; only ~20% of attacked civilians fight back (down from the
+  spec's 40%).
+- **Cache busting:** the `?v=` stamp on the script tags in `index.html` must be bumped
+  whenever game code changes, or CDN proxies (like githack) serve stale JS.
 - **Materials are `MeshLambertMaterial` only** (gouraud-style), no PBR.
 - **Zero asset files:** all geometry is procedural, all textures are drawn on `<canvas>`,
   all sound is synthesized with WebAudio, and fonts come from a CSS system-font stack.

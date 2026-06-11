@@ -11,11 +11,11 @@
   #game { position:absolute; inset:0; }
   #game canvas { display:block; width:100%; height:100%; image-rendering:pixelated; image-rendering:crisp-edges; }
 
-  /* PS2 post overlay: scanlines + vignette */
+  /* PS2 post overlay: subtle scanlines + vignette */
   #post { position:fixed; inset:0; pointer-events:none; z-index:30;
     background:
-      repeating-linear-gradient(0deg, rgba(0,0,0,0.08) 0px, rgba(0,0,0,0.08) 1px, transparent 1px, transparent 3px),
-      radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(0,0,0,0.45) 100%); }
+      repeating-linear-gradient(0deg, rgba(0,0,0,0.045) 0px, rgba(0,0,0,0.045) 1px, transparent 1px, transparent 4px),
+      radial-gradient(ellipse at center, rgba(0,0,0,0) 62%, rgba(0,0,0,0.32) 100%); }
 
   /* HUD */
   #hud { position:fixed; inset:0; pointer-events:none; z-index:20; font-family:'Arial Narrow', Impact, sans-serif; }
@@ -215,7 +215,7 @@
     <h1>GROVE<br>WARS</h1>
     <h2>SAN ANDREAS STREETS</h2>
     <div class="go">CLICK / TAP TO START</div>
-    <div class="ctrls">WASD move · Mouse aim · LMB fire · RMB scope · Shift sprint · Space jump/handbrake · F enter car · G recruit/dismiss · R reload · 1-9 / wheel weapons · TAB map · N radio · M mute · Esc pause</div>
+    <div class="ctrls">WASD move · Mouse aim · LMB fire · RMB scope · Shift sprint · Space jump/handbrake · F enter car · G recruit/dismiss · R reload · 1-9 / wheel weapons · N or TAB map · B radio · M mute · Esc pause</div>
   </div>
 
   <!-- big message -->
@@ -226,7 +226,7 @@
     <h1>PAUSED</h1>
     <div id="pause-progress">TERRITORIES: 2 / 16</div>
     <div id="pause-stats" style="font-size:16px;color:#9fff9f;margin-bottom:1vh;"></div>
-    <div class="ctrls">WASD move · Mouse aim · LMB fire · RMB scope (sniper) · Shift sprint · Space jump / handbrake · F enter/exit vehicle · G recruit/dismiss homie · R reload · 1-9 or mouse wheel switch weapons · TAB full map · M mute · Esc pause<br>Walk into the yellow marker at AMMU-NATION to buy weapons. Kill 3 rivals in their turf to start a GANG WAR.</div>
+    <div class="ctrls">WASD move · Mouse aim · LMB fire · RMB scope (sniper) · Shift sprint · Space jump / handbrake · F enter/exit vehicle · G recruit/dismiss homie · R reload · 1-9 or mouse wheel switch weapons · N or TAB full map · B radio · M mute · Esc pause<br>Walk into the yellow marker at AMMU-NATION to buy weapons. Kill 3 rivals in their turf to start a GANG WAR.</div>
     <div>
       <button id="pause-resume" class="menu-btn">RESUME</button>
       <button id="pause-mute" class="menu-btn">MUTE</button>
@@ -248,15 +248,17 @@
     <button id="victory-continue" class="menu-btn">KEEP PLAYING</button>
   </div>
 
-  <!-- scripts: exact load order (classic, non-module) -->
+  <!-- scripts: exact load order (classic, non-module).
+       The ?v= stamp must be bumped on every release so CDN proxies
+       (e.g. githack) don't serve stale cached game code. -->
   <script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
-  <script src="js/util.js"></script>
-  <script src="js/config.js"></script>
-  <script src="js/city.js"></script>
-  <script src="js/peds.js"></script>
-  <script src="js/vehicles.js"></script>
-  <script src="js/player.js"></script>
-  <script src="js/hud.js"></script>
-  <script src="js/game.js"></script>
+  <script src="js/util.js?v=4"></script>
+  <script src="js/config.js?v=4"></script>
+  <script src="js/city.js?v=4"></script>
+  <script src="js/peds.js?v=4"></script>
+  <script src="js/vehicles.js?v=4"></script>
+  <script src="js/player.js?v=4"></script>
+  <script src="js/hud.js?v=4"></script>
+  <script src="js/game.js?v=4"></script>
 </body>
 </html>

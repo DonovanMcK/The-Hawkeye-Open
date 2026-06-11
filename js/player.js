@@ -17,7 +17,7 @@
       fists: { owned: true, mag: 0, reserve: 0 },
       pistol: { owned: true, mag: 17, reserve: 60 },
       deagle: { owned: false, mag: 0, reserve: 0 },
-      uzi: { owned: false, mag: 0, reserve: 0 },
+      uzi: { owned: true, mag: 30, reserve: 90 },  // starter SMG
       shotgun: { owned: false, mag: 0, reserve: 0 },
       ak: { owned: false, mag: 0, reserve: 0 },
       sniper: { owned: false, mag: 0, reserve: 0 },
@@ -81,8 +81,8 @@
       K[e.code] = true;
       if (e.code === 'Escape') G.togglePause();
       if (e.code === 'KeyM') G.toggleMute();
-      if (e.code === 'KeyN') G.cycleRadio();
-      if (e.code === 'Tab') { e.preventDefault(); G.toggleMap(); return; }
+      if (e.code === 'KeyB') G.cycleRadio();
+      if (e.code === 'KeyN' || e.code === 'Tab') { e.preventDefault(); G.toggleMap(); return; }
       if (G.paused || G.over) return;
       if (e.code === 'KeyF') self.enterExit();
       if (e.code === 'KeyG') self.recruitAction();

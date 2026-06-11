@@ -43,9 +43,11 @@ function boxGeom() {
   g.index = makeAttr(new Uint16Array(36), 1);
   g.translate = function (x, y, z) { var a = this.attributes.position.array; for (var i = 0; i < a.length; i += 3) { a[i] += x; a[i + 1] += y; a[i + 2] += z; } return this; };
   g.dispose = function () {};
+  g.toNonIndexed = function () { return this; };
+  g.computeVertexNormals = function () {};
   return g;
 }
-function simpleGeom() { return { attributes: {}, translate: function () { return this; }, dispose: function () {}, setAttribute: function (n, a) { this.attributes[n] = a; }, setIndex: function (a) { this.index = a; } }; }
+function simpleGeom() { return { attributes: {}, translate: function () { return this; }, dispose: function () {}, toNonIndexed: function () { return this; }, computeVertexNormals: function () {}, setAttribute: function (n, a) { this.attributes[n] = a; }, setIndex: function (a) { this.index = a; } }; }
 
 var THREE = {
   Vector3: Vec3, Color: Color, Matrix4: function () { this.makeTranslation = function () { return this; }; },

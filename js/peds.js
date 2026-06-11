@@ -4,6 +4,15 @@
   var G = window.G, U = window.U;
 
   // ---------- shared low-poly person builder (PS2-style faceted humans) ----------
+  // facet(): de-index geometry so every triangle gets its own face normal —
+  // turns smooth cylinders/spheres into visibly faceted low-poly surfaces
+  function facet(geo) {
+    var g = geo.toNonIndexed();
+    g.computeVertexNormals();
+    geo.dispose();
+    return g;
+  }
+  G.facet = facet;
   // returns { group, parts:{head,torso,larm,rarm,lleg,rleg,+pivots}, shadow }
   G.buildPerson = function (skin, shirt, pants) {
     var grp = new THREE.Group();
@@ -14,26 +23,26 @@
     function limbPivot(y, x) { var p = new THREE.Group(); p.position.set(x, y, 0); grp.add(p); return p; }
     // legs: tapered low-poly cylinders (thigh wider than ankle), pivot at hip
     var llegP = limbPivot(0.95, -0.17), rlegP = limbPivot(0.95, 0.17);
-    var legGeo = new THREE.CylinderGeometry(0.10, 0.145, 0.95, 6);
+    var legGeo = facet(new THREE.CylinderGeometry(0.10, 0.145, 0.95, 6));
     var lleg = new THREE.Mesh(legGeo, pantsMat); lleg.position.y = -0.475; llegP.add(lleg);
     var rleg = new THREE.Mesh(legGeo, pantsMat); rleg.position.y = -0.475; rlegP.add(rleg);
     var shoeGeo = new THREE.BoxGeometry(0.17, 0.1, 0.32);
     var lshoe = new THREE.Mesh(shoeGeo, shoeMat); lshoe.position.set(0, -0.92, 0.06); llegP.add(lshoe);
     var rshoe = new THREE.Mesh(shoeGeo, shoeMat); rshoe.position.set(0, -0.92, 0.06); rlegP.add(rshoe);
     // hips
-    var hips = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.2, 0.25, 7), pantsMat);
+    var hips = new THREE.Mesh(facet(new THREE.CylinderGeometry(0.24, 0.2, 0.25, 7)), pantsMat);
     hips.scale.z = 0.7; hips.position.y = 1.0; grp.add(hips);
     // torso: shoulders wider than waist, faceted
-    var torso = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.23, 0.78, 7), shirtMat);
+    var torso = new THREE.Mesh(facet(new THREE.CylinderGeometry(0.34, 0.23, 0.78, 7)), shirtMat);
     torso.scale.z = 0.62; torso.position.y = 1.5; grp.add(torso);
     // neck + head (low-seg sphere = PS2 faceted look)
-    var neck = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 0.14, 6), skinMat);
+    var neck = new THREE.Mesh(facet(new THREE.CylinderGeometry(0.07, 0.09, 0.14, 6)), skinMat);
     neck.position.y = 1.93; grp.add(neck);
-    var head = new THREE.Mesh(new THREE.SphereGeometry(0.21, 7, 6), skinMat);
+    var head = new THREE.Mesh(facet(new THREE.SphereGeometry(0.21, 7, 6)), skinMat);
     head.scale.set(0.9, 1.1, 0.95); head.position.y = 2.16; grp.add(head);
     // arms: tapered, pivot at shoulder
     var larmP = limbPivot(1.8, -0.42), rarmP = limbPivot(1.8, 0.42);
-    var armGeo = new THREE.CylinderGeometry(0.075, 0.1, 0.72, 6);
+    var armGeo = facet(new THREE.CylinderGeometry(0.075, 0.1, 0.72, 6));
     var larm = new THREE.Mesh(armGeo, skinMat); larm.position.y = -0.38; larmP.add(larm);
     var rarm = new THREE.Mesh(armGeo, skinMat); rarm.position.y = -0.38; rarmP.add(rarm);
     // blob shadow
