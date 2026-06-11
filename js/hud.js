@@ -18,7 +18,7 @@
     this.elCarWrap = $('hud-carhp-wrap'); this.elCarHp = $('bar-carhp');
     this.elNotify = $('hud-notify'); this.elArmorWrap = $('bar-armor-wrap');
     this.radar = $('radar'); this.rctx = this.radar.getContext('2d');
-    this.scope = $('scope');
+    this.scope = $('scope'); this.elObj = $('hud-objective');
     G.notify = function (msg) { HUD.pushNotify(msg); };
     if (G.input.touch) this.buildTouch();
   };
@@ -68,6 +68,13 @@
     // car hp
     if (p.inCar) { this.elCarWrap.style.display = 'block'; this.setBar('carhp', this.elCarHp, p.inCar.hp / 100); }
     else if (this.elCarWrap.style.display !== 'none') this.elCarWrap.style.display = 'none';
+    // objective line
+    var obj, contested = null;
+    for (var ci = 0; ci < G.city.territories.length; ci++) if (G.city.territories[ci].contested) { contested = G.city.territories[ci]; break; }
+    if (G.war && G.war.active) obj = 'GANG WAR — SURVIVE WAVE ' + G.war.wave + '/3';
+    else if (contested) obj = 'TURF UNDER ATTACK — GET THERE! ' + Math.max(0, Math.ceil(contested.contestTimer)) + 's';
+    else obj = 'TERRITORIES ' + G.groveCount() + '/16 — KILL 3 RIVALS IN THEIR TURF';
+    if (this.last.obj !== obj) { this.elObj.textContent = obj; this.last.obj = obj; }
     // radar
     this.radarCd -= dt;
     if (this.radarCd <= 0) { this.radarCd = 1 / 30; this.drawRadar(); }
@@ -87,23 +94,22 @@
     ctx.beginPath(); ctx.arc(R, R, R - 2, 0, U.TAU); ctx.clip();
     ctx.fillStyle = '#10180f'; ctx.fillRect(0, 0, 160, 160);
     ctx.save();
-    ctx.translate(R, R); ctx.rotate(-yaw);
+    // screen-right is world -x, so plot (-dx,-dz) and rotate by +yaw to keep facing up
+    ctx.translate(R, R); ctx.rotate(yaw);
     // territory tints
-    var terr = G.city.territories, tsz = 144 * scale;
+    var terr = G.city.territories;
     for (var i = 0; i < terr.length; i++) {
       var t = terr[i];
-      var rx = (t.cx - px) * scale, rz = (t.cz - pz) * scale;
+      var tsz = (t.maxX - t.minX) * scale;
+      var rx = (px - t.cx) * scale, rz = (t.cz - pz) * scale;
       var col = U.hexToRgb(G.GANGS[t.owner].color);
       ctx.fillStyle = 'rgba(' + col.r + ',' + col.g + ',' + col.b + ',' + (t.contested ? (Math.sin(performance.now() / 150) * 0.2 + 0.4) : 0.3) + ')';
       ctx.fillRect(rx - tsz / 2, -rz - tsz / 2, tsz, tsz);
       if (t.contested) { ctx.strokeStyle = '#ff2020'; ctx.lineWidth = 2; ctx.strokeRect(rx - tsz / 2, -rz - tsz / 2, tsz, tsz); }
     }
-    // road grid (faint)
-    ctx.strokeStyle = 'rgba(120,120,120,0.25)'; ctx.lineWidth = 1;
-    var period = G.city.period;
     // blips
     function blip(wx, wz, color, size) {
-      var rx = (wx - px) * scale, rz = (wz - pz) * scale;
+      var rx = (px - wx) * scale, rz = (wz - pz) * scale;
       if (rx * rx + rz * rz > (R - 4) * (R - 4)) return;
       ctx.fillStyle = color; ctx.beginPath(); ctx.arc(rx, -rz, size || 2.5, 0, U.TAU); ctx.fill();
     }
@@ -131,12 +137,64 @@
   };
   HUD.radarIcon = function (ctx, lm, px, pz, scale, R, color, ch) {
     if (!lm) return;
-    var rx = (lm.x - px) * scale, rz = (lm.z - pz) * scale;
+    var rx = (px - lm.x) * scale, rz = (lm.z - pz) * scale;
     var d = Math.sqrt(rx * rx + rz * rz);
     if (d > R - 6) { rx = rx / d * (R - 6); rz = rz / d * (R - 6); }
     ctx.fillStyle = color; ctx.fillRect(rx - 4, -rz - 4, 8, 8);
     ctx.fillStyle = '#000'; ctx.font = 'bold 8px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(ch, rx, -rz);
+  };
+
+  // ---------- full-screen map (Tab / MAP button) ----------
+  HUD.drawBigMap = function () {
+    var cv = $('bigmap'), ctx = cv.getContext('2d');
+    var S = 640; cv.width = S; cv.height = S;
+    var span = G.city.span, sc = (S - 24) / span, C = S / 2;
+    // same convention as the radar: screen-right = world -x, screen-up = world +z
+    function mx(wx) { return C - wx * sc; } function mz(wz) { return C - wz * sc; }
+    ctx.fillStyle = '#0b110b'; ctx.fillRect(0, 0, S, S);
+    // territories with owner names
+    for (var i = 0; i < G.city.territories.length; i++) {
+      var t = G.city.territories[i], col = U.hexToRgb(G.GANGS[t.owner].color);
+      var x0 = mx(t.maxX), z0 = mz(t.maxZ), w = (t.maxX - t.minX) * sc, h = (t.maxZ - t.minZ) * sc;
+      ctx.fillStyle = 'rgba(' + col.r + ',' + col.g + ',' + col.b + ',0.42)';
+      ctx.fillRect(x0, z0, w, h);
+      ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.lineWidth = 1; ctx.strokeRect(x0, z0, w, h);
+      if (t.contested) { ctx.strokeStyle = '#ff2020'; ctx.lineWidth = 3; ctx.strokeRect(x0 + 2, z0 + 2, w - 4, h - 4); ctx.lineWidth = 1; }
+      ctx.fillStyle = '#fff'; ctx.font = '900 14px Arial Narrow, Impact, sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(G.GANGS[t.owner].name, x0 + w / 2, z0 + h / 2);
+    }
+    // road grid
+    ctx.strokeStyle = 'rgba(210,210,210,0.16)';
+    for (var g = 0; g <= G.cfg.BLOCKS; g++) {
+      var gp = G.city.worldMin + g * G.city.period;
+      ctx.beginPath(); ctx.moveTo(mx(gp), mz(G.city.worldMin)); ctx.lineTo(mx(gp), mz(G.city.worldMax)); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(mx(G.city.worldMin), mz(gp)); ctx.lineTo(mx(G.city.worldMax), mz(gp)); ctx.stroke();
+    }
+    // labeled landmarks
+    var lm = G.city.landmarks;
+    this.mapIcon(ctx, mx(lm.hospital.x), mz(lm.hospital.z), '#ff5555', 'H', 'HOSPITAL');
+    this.mapIcon(ctx, mx(lm.police.x), mz(lm.police.z), '#5588ff', 'P', 'POLICE');
+    this.mapIcon(ctx, mx(lm.ammu.x), mz(lm.ammu.z), '#ffe000', '$', 'AMMU-NATION');
+    // crew blips
+    for (var c = 0; c < G.crew.length; c++) {
+      ctx.fillStyle = '#7fff7f'; ctx.beginPath(); ctx.arc(mx(G.crew[c].x), mz(G.crew[c].z), 3.5, 0, U.TAU); ctx.fill();
+    }
+    // player arrow (rotated to facing)
+    ctx.save(); ctx.translate(mx(G.player.x), mz(G.player.z)); ctx.rotate(-G.input.yaw);
+    ctx.fillStyle = '#fff'; ctx.strokeStyle = '#000'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(0, -9); ctx.lineTo(-5.5, 6.5); ctx.lineTo(5.5, 6.5); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.restore();
+    ctx.textBaseline = 'alphabetic';
+  };
+  HUD.mapIcon = function (ctx, x, z, color, ch, label) {
+    ctx.fillStyle = color; ctx.fillRect(x - 7, z - 7, 14, 14);
+    ctx.strokeStyle = '#000'; ctx.lineWidth = 1; ctx.strokeRect(x - 7, z - 7, 14, 14);
+    ctx.fillStyle = '#000'; ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(ch, x, z);
+    ctx.fillStyle = '#fff'; ctx.font = '900 12px Arial Narrow, Impact, sans-serif';
+    ctx.fillText(label, x, z + 16);
   };
 
   // ---------- Ammu-Nation menu ----------
@@ -238,6 +296,7 @@
     this.btn('btn-prev', function (d) { if (d) G.player.cycleWeapon(-1); });
     this.btn('btn-next', function (d) { if (d) G.player.cycleWeapon(1); });
     this.btn('btn-pause', function (d) { if (d) G.togglePause(); });
+    this.btn('btn-map', function (d) { if (d) G.toggleMap(); });
 
     function changed(e) { return e.changedTouches[0]; }
     function findTouch(e, id, inChanged) {

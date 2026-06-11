@@ -28,9 +28,22 @@
     });
   }
 
+  // floating world-space label (always faces camera, ignores fog so it reads far away)
+  function labelSprite(text, color, w) {
+    var c = document.createElement('canvas'); c.width = 256; c.height = 64;
+    var ctx = c.getContext('2d');
+    ctx.font = '900 42px Arial Narrow, Impact, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.lineWidth = 8; ctx.strokeStyle = '#000'; ctx.strokeText(text, 128, 32);
+    ctx.fillStyle = color; ctx.fillText(text, 128, 32);
+    var t = new THREE.CanvasTexture(c);
+    var m = new THREE.SpriteMaterial({ map: t, transparent: true, depthTest: false, fog: false });
+    var s = new THREE.Sprite(m); s.scale.set(w || 16, (w || 16) / 4, 1); s.renderOrder = 5;
+    return { sprite: s, canvas: c, ctx: ctx, tex: t };
+  }
+
   // bake whole ground: grass + road grid + lane dashes + sidewalks
   function groundTex(C) {
-    var SZ = 1024;
+    var SZ = 1536;
     return U.canvasTex(SZ, SZ, function (ctx) {
       var span = C.span;
       function px(x) { return (x - C.worldMin) / span * SZ; }
@@ -176,22 +189,23 @@
       'ballas', 'vagos', 'neutral', 'ballas',
       'vagos', 'ballas', 'vagos', 'grove'
     ];
+    var tpb = cfg.BLOCKS / 4; // blocks per territory side
     for (var ti = 0; ti < 4; ti++) for (var tj = 0; tj < 4; tj++) {
-      var cx = this.worldMin + (ti * 3 + 1.5) * this.period;
-      var cz = this.worldMin + (tj * 3 + 1.5) * this.period;
+      var cx = this.worldMin + (ti * tpb + tpb / 2) * this.period;
+      var cz = this.worldMin + (tj * tpb + tpb / 2) * this.period;
       this.territories.push({
         ix: ti, iz: tj, cx: cx, cz: cz, owner: layout[ti * 4 + tj],
         contested: false, contestTimer: 0, contestBy: null,
-        minX: this.worldMin + ti * 3 * this.period, maxX: this.worldMin + (ti + 1) * 3 * this.period,
-        minZ: this.worldMin + tj * 3 * this.period, maxZ: this.worldMin + (tj + 1) * 3 * this.period,
+        minX: this.worldMin + ti * tpb * this.period, maxX: this.worldMin + (ti + 1) * tpb * this.period,
+        minZ: this.worldMin + tj * tpb * this.period, maxZ: this.worldMin + (tj + 1) * tpb * this.period,
         flag: null
       });
     }
 
     // ---- landmarks: pick specific cells ----
-    this.landmarks.hospital = { i: 2, j: 2 };
-    this.landmarks.police = { i: 9, j: 3 };
-    this.landmarks.ammu = { i: 5, j: 8 };
+    this.landmarks.hospital = { i: 3, j: 3 };
+    this.landmarks.police = { i: 12, j: 4 };
+    this.landmarks.ammu = { i: 7, j: 10 };
     var lmCells = {};
     lmCells[this.landmarks.hospital.i + ',' + this.landmarks.hospital.j] = 'hospital';
     lmCells[this.landmarks.police.i + ',' + this.landmarks.police.j] = 'police';
@@ -273,6 +287,12 @@
     var sm = new THREE.Mesh(new THREE.PlaneGeometry(bw * 0.9, 4), new THREE.MeshLambertMaterial({ map: sign, emissive: 0xffffff, emissiveMap: sign, emissiveIntensity: 0.4 }));
     sm.position.set(center.x, bh + 2.5, center.z + bd / 2 + 0.1);
     group.add(sm);
+    // floating label readable from across the map
+    var lblText = type === 'hospital' ? 'HOSPITAL' : (type === 'police' ? 'POLICE STATION' : 'AMMU-NATION');
+    var lblColor = type === 'hospital' ? '#ff6a6a' : (type === 'police' ? '#6a9aff' : '#ffe000');
+    var lbl = labelSprite(lblText, lblColor, 18);
+    lbl.sprite.position.set(center.x, bh + 7, center.z);
+    group.add(lbl.sprite);
     // red cross for hospital
     if (type === 'hospital') {
       var cm = new THREE.MeshLambertMaterial({ color: 0xcc2222, emissive: 0xcc2222, emissiveIntensity: 0.3 });
@@ -325,7 +345,7 @@
   City.prototype._buildTrees = function (scene) {
     var pts = [];
     // scatter palms in park-ish spots: pick some empty cells centers, plus roadside
-    for (var i = 0; i < 90; i++) {
+    for (var i = 0; i < 140; i++) {
       var x = U.rand(this.worldMin + 6, this.worldMax - 6);
       var z = U.rand(this.worldMin + 6, this.worldMax - 6);
       if (this.onRoad(x, z)) continue;
@@ -366,12 +386,24 @@
       // raise flag to ground if inside a building footprint, nudge
       scene.add(g);
       t.flag = g; t.flagMat = flagMat;
+      // floating turf label that updates with ownership
+      var lbl = labelSprite(G.GANGS[t.owner].name + ' TURF', G.GANGS[t.owner].color, 13);
+      lbl.sprite.position.set(t.cx, 10.5, t.cz);
+      scene.add(lbl.sprite);
+      t.label = lbl;
     }
   };
   City.prototype.setTerritoryOwner = function (t, owner) {
     t.owner = owner;
     var col = U.hexInt(G.GANGS[owner].color);
     t.flagMat.color.setHex(col); t.flagMat.emissive.setHex(col);
+    if (t.label) {
+      var L = t.label, txt = G.GANGS[owner].name + ' TURF';
+      L.ctx.clearRect(0, 0, 256, 64);
+      L.ctx.strokeText(txt, 128, 32);
+      L.ctx.fillStyle = G.GANGS[owner].color; L.ctx.fillText(txt, 128, 32);
+      L.tex.needsUpdate = true;
+    }
   };
 
   City.prototype._buildFence = function (scene) {

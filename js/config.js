@@ -6,7 +6,7 @@
 
   // ---- world constants ----
   G.cfg = {
-    BLOCKS: 12,           // 12x12 grid of blocks
+    BLOCKS: 16,           // 16x16 grid of blocks (expanded map)
     BLOCK_SIZE: 36,       // building footprint span
     ROAD_W: 12,           // road width between blocks
     LANE_W: 3,
@@ -25,7 +25,7 @@
     CAP_PARTICLE: 200,
 
     AI_FULL_DIST: 60,     // full-rate AI radius
-    PLAYER_HP: 100,
+    PLAYER_HP: 150,
     PED_HP: 60,
     GANG_HP: 100,
     COP_HP: 100,
@@ -97,6 +97,13 @@
 
   // building tints
   G.BUILDING_TINTS = ['#d8c9a3', '#9e4b3c', '#8a8f96', '#5f8a86'];
+
+  // flavor quips shown as notifications
+  G.QUIPS = {
+    recruit: ['"GROVE STREET — HOME."', '"FOR LIFE, HOMIE!"', '"LET\'S ROLL OUT!"', '"YOU GOT MY BACK, I GOT YOURS."'],
+    war: ['"IT\'S GROVE STREET, FOOL!"', '"YOU PICKED THE WRONG HOOD!"', '"HOLD THE BLOCK!"'],
+    capture: ['"THE HOOD IS OURS."', '"GREEN ON THE MAP, BABY."', '"ANOTHER ONE FOR THE FAMILIES."'],
+  };
 
   // ---- runtime state (filled by game.js) ----
   G.scene = null; G.camera = null; G.renderer = null; G.clock = null;

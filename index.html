@@ -57,11 +57,12 @@
   #scope:before { content:''; position:absolute; left:50%; top:0; width:1px; height:100%; background:rgba(0,0,0,0.7); }
   #scope:after  { content:''; position:absolute; top:50%; left:0; height:1px; width:100%; background:rgba(0,0,0,0.7); }
 
-  /* crosshair */
-  #crosshair { position:fixed; left:50%; top:50%; width:14px; height:14px; transform:translate(-50%,-50%); z-index:18; pointer-events:none; }
-  #crosshair:before,#crosshair:after { content:''; position:absolute; background:rgba(255,255,255,0.8); box-shadow:0 0 0 1px rgba(0,0,0,0.6); }
-  #crosshair:before { left:6px; top:0; width:2px; height:14px; }
-  #crosshair:after { top:6px; left:0; height:2px; width:14px; }
+  /* crosshair (shown on desktop AND mobile) */
+  #crosshair { position:fixed; left:50%; top:50%; width:22px; height:22px; transform:translate(-50%,-50%); z-index:18; pointer-events:none; }
+  #crosshair:before,#crosshair:after { content:''; position:absolute; background:rgba(255,255,255,0.9); box-shadow:0 0 0 1px rgba(0,0,0,0.7); }
+  #crosshair:before { left:10px; top:0; width:2px; height:22px; }
+  #crosshair:after { top:10px; left:0; height:2px; width:22px; }
+  #crosshair .dot { position:absolute; left:50%; top:50%; width:4px; height:4px; margin:-2px 0 0 -2px; border-radius:50%; background:#ff4a4a; box-shadow:0 0 0 1px rgba(0,0,0,0.7); }
 
   /* start screen */
   #start { position:fixed; inset:0; z-index:50; display:flex; flex-direction:column; align-items:center; justify-content:center;
@@ -110,8 +111,18 @@
   .ammu-row button:hover { background:#555; } .ammu-row button:disabled { opacity:0.35; cursor:default; }
   #ammu .menu-btn { margin-top:14px; }
 
+  /* big map overlay */
+  #bigmap-wrap { position:fixed; inset:0; z-index:44; display:none; flex-direction:column; align-items:center; justify-content:center;
+    background:rgba(2,6,3,0.92); }
+  #bigmap { width:min(92vw,80vh); height:min(92vw,80vh); image-rendering:auto; border:3px solid #555; box-shadow:0 0 30px rgba(0,0,0,0.8); }
+  #bigmap-hint { color:#ccc; font-weight:900; letter-spacing:1px; margin-top:10px; font-size:16px; }
+
+  /* objective line above radar */
+  #hud-objective { position:absolute; bottom:180px; left:12px; font-size:15px; max-width:300px;
+    font-weight:900; letter-spacing:0.5px; color:#ffd24a;
+    text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000; }
+
   /* touch controls */
-  body.touch #crosshair { display:none; }
   #touch { position:fixed; inset:0; z-index:22; display:none; pointer-events:none; }
   #aim-zone { position:absolute; right:0; top:0; width:55%; height:100%; pointer-events:auto; }
   #joystick { position:absolute; left:18px; bottom:18px; width:130px; height:130px; border-radius:50%;
@@ -129,16 +140,18 @@
   #btn-prev { left:160px; bottom:30px; width:54px; height:54px; }
   #btn-next { left:220px; bottom:30px; width:54px; height:54px; }
   #btn-pause { right:14px; top:90px; width:48px; height:48px; font-size:18px; }
+  #btn-map { right:14px; top:148px; width:48px; height:48px; font-size:11px; }
 
   @media (max-width:560px) {
     #hud-money { font-size:24px; } #hud-time { font-size:18px; } #hud-notify { font-size:20px; }
     #radar-wrap, #radar { width:120px; height:120px; }
+    #hud-objective { bottom:146px; font-size:12px; max-width:220px; }
   }
 </style>
 </head>
 <body>
   <div id="game"></div>
-  <div id="crosshair"></div>
+  <div id="crosshair"><div class="dot"></div></div>
 
   <!-- HUD -->
   <div id="hud">
@@ -154,8 +167,15 @@
       <div id="hud-weapon" class="hud-text">PISTOL</div>
       <div id="hud-ammo" class="hud-text">17 / 60</div>
     </div>
+    <div id="hud-objective"></div>
     <div id="radar-wrap"><canvas id="radar" width="160" height="160"></canvas></div>
     <div id="hud-notify"></div>
+  </div>
+
+  <!-- full-screen map -->
+  <div id="bigmap-wrap" onclick="window.G.toggleMap()">
+    <canvas id="bigmap" width="640" height="640"></canvas>
+    <div id="bigmap-hint">TAB / MAP BUTTON / TAP TO CLOSE</div>
   </div>
 
   <div id="scope"></div>
@@ -172,6 +192,7 @@
     <div id="btn-prev" class="tbtn">◀</div>
     <div id="btn-next" class="tbtn">▶</div>
     <div id="btn-pause" class="tbtn">⏸</div>
+    <div id="btn-map" class="tbtn">MAP</div>
   </div>
 
   <!-- start screen -->
@@ -179,7 +200,7 @@
     <h1>GROVE<br>WARS</h1>
     <h2>SAN ANDREAS STREETS</h2>
     <div class="go">CLICK / TAP TO START</div>
-    <div class="ctrls">WASD move · Mouse aim · LMB fire · RMB scope · Shift sprint · Space jump/handbrake · F enter car · G recruit/dismiss · R reload · 1-9 / wheel weapons · M mute · Esc pause</div>
+    <div class="ctrls">WASD move · Mouse aim · LMB fire · RMB scope · Shift sprint · Space jump/handbrake · F enter car · G recruit/dismiss · R reload · 1-9 / wheel weapons · TAB map · M mute · Esc pause</div>
   </div>
 
   <!-- big message -->
@@ -189,7 +210,7 @@
   <div id="pause">
     <h1>PAUSED</h1>
     <div id="pause-progress">TERRITORIES: 2 / 16</div>
-    <div class="ctrls">WASD move · Mouse aim · LMB fire · RMB scope (sniper) · Shift sprint · Space jump / handbrake · F enter/exit vehicle · G recruit/dismiss homie · R reload · 1-9 or mouse wheel switch weapons · M mute · Esc pause<br>Walk into the yellow marker at AMMU-NATION to buy weapons. Kill 3 rivals in their turf to start a GANG WAR.</div>
+    <div class="ctrls">WASD move · Mouse aim · LMB fire · RMB scope (sniper) · Shift sprint · Space jump / handbrake · F enter/exit vehicle · G recruit/dismiss homie · R reload · 1-9 or mouse wheel switch weapons · TAB full map · M mute · Esc pause<br>Walk into the yellow marker at AMMU-NATION to buy weapons. Kill 3 rivals in their turf to start a GANG WAR.</div>
     <div>
       <button id="pause-resume" class="menu-btn">RESUME</button>
       <button id="pause-mute" class="menu-btn">MUTE</button>

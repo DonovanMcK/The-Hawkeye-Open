@@ -41,6 +41,7 @@ Take over San Andreas. The city is split into **16 territories** owned by your g
 | G | Recruit a nearby Grove homie / dismiss (when looking at a recruit) |
 | R | Reload |
 | 1–9, mouse wheel, `[` / `]` | Switch weapons |
+| Tab | Full-screen city map (labeled territories + landmarks) |
 | M | Mute |
 | Esc | Pause |
 
@@ -48,7 +49,7 @@ Take over San Andreas. The city is split into **16 territories** owned by your g
 - **Left virtual joystick** = move (full deflection auto-sprints).
 - **Right half of the screen** = drag to aim / turn the camera.
 - On-screen buttons: **FIRE**, **JMP/BRK**, **ENTER**, **CREW** (recruit), **◀ / ▶**
-  (cycle weapons), **⏸** (pause).
+  (cycle weapons), **MAP** (full-screen map), **⏸** (pause).
 - Fire has slight **aim assist** (snaps within ±5° to the nearest target) since touch
   aiming is hard.
 
@@ -91,6 +92,10 @@ Take over San Andreas. The city is split into **16 territories** owned by your g
   `image-rendering: pixelated`; fog color always equals the sky color so distant geometry
   melts into the sky like a PS2 draw distance.
 - **No shadow maps** — every character and car gets a fake dark "blob" shadow instead.
+- **Characters are low-poly faceted humans** (tapered limbs, shoulders, neck, faceted
+  head) rather than plain boxes — closer to real PS2-era models.
+- **Playability tuning:** the player starts with a bulletproof vest and 150 HP, and only
+  ~20% of attacked civilians fight back (down from the spec's 40%).
 - **Materials are `MeshLambertMaterial` only** (gouraud-style), no PBR.
 - **Zero asset files:** all geometry is procedural, all textures are drawn on `<canvas>`,
   all sound is synthesized with WebAudio, and fonts come from a CSS system-font stack.

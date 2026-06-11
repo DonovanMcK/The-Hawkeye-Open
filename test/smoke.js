@@ -72,6 +72,8 @@ var THREE = {
   MeshBasicMaterial: function (o) { o = o || {}; this.color = new Color(o.color); this.opacity = o.opacity == null ? 1 : o.opacity; this.transparent = o.transparent; this.side = o.side; this.depthWrite = o.depthWrite; },
   LineBasicMaterial: function (o) { o = o || {}; this.color = new Color(o.color); this.opacity = 1; this.transparent = o.transparent; },
   CanvasTexture: function (c) { this.image = c; this.needsUpdate = false; this.wrapS = 0; this.wrapT = 0; },
+  Sprite: function (m) { Object3D.call(this); this.material = m; this.renderOrder = 0; },
+  SpriteMaterial: function (o) { o = o || {}; this.map = o.map; this.transparent = o.transparent; this.depthTest = o.depthTest; this.fog = o.fog; },
   Clock: function () { this.getDelta = function () { return 0.016; }; },
   DoubleSide: 2, RepeatWrapping: 1000,
 };
@@ -79,7 +81,7 @@ var THREE = {
 // ---------- DOM stub ----------
 function makeCtx() {
   var noop = function () {};
-  return { clearRect: noop, fillRect: noop, fillText: noop, strokeRect: noop, beginPath: noop, arc: noop, clip: noop, save: noop, restore: noop, translate: noop, rotate: noop, moveTo: noop, lineTo: noop, stroke: noop, setLineDash: noop, closePath: noop, fill: noop, fillStyle: '', strokeStyle: '', lineWidth: 1, font: '', textAlign: '', textBaseline: '' };
+  return { clearRect: noop, fillRect: noop, fillText: noop, strokeText: noop, strokeRect: noop, beginPath: noop, arc: noop, clip: noop, save: noop, restore: noop, translate: noop, rotate: noop, moveTo: noop, lineTo: noop, stroke: noop, setLineDash: noop, closePath: noop, fill: noop, fillStyle: '', strokeStyle: '', lineWidth: 1, font: '', textAlign: '', textBaseline: '' };
 }
 function makeEl(tag) {
   var el = {
@@ -185,6 +187,8 @@ try {
     if (i === 340) { G.player.takeDamage(250, null); } // wasted path
     if (i === 400) { G.togglePause(); }
     if (i === 410) { G.togglePause(); }
+    if (i === 420) { G.toggleMap(); }
+    if (i === 430) { G.toggleMap(); }
     if (i === 450) { G.hud.openAmmu(); G.hud.buy('gun', 'deagle'); G.hud.buy('clip', 'pistol'); G.hud.closeAmmu(); }
     // win path: give all territories to grove and capture-check
     if (i === 500) { for (var w = 0; w < G.city.territories.length; w++) G.city.setTerritoryOwner(G.city.territories[w], 'grove'); G.onWin(); }

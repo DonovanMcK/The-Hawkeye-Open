@@ -588,7 +588,7 @@
     },
     start: function (t) {
       this.active = t; this.wave = 0; this.leaveTimer = 0; t._warGang = t.owner;
-      G.notify('GANG WAR!'); U.audio.sfx('alarm');
+      G.notify('GANG WAR!'); G.notify(U.pick(G.QUIPS.war)); U.audio.sfx('alarm');
       this.nextWave();
     },
     nextWave: function () {
@@ -635,7 +635,7 @@
       G.city.setTerritoryOwner(t, 'grove'); this.active = null;
       G.money += 1000; G.addRespect(G.RESPECT.captureTerr);
       for (var i = 0; i < 20; i++) G.spawnParticle('firework', t.cx + U.rand(-3, 3), 2, t.cz + U.rand(-3, 3));
-      U.audio.sfx('victory'); G.notify('TERRITORY CAPTURED! +$1000');
+      U.audio.sfx('victory'); G.notify('TERRITORY CAPTURED! +$1000'); G.notify(U.pick(G.QUIPS.capture));
       this.clearWarFlags();
       if (G.groveCount() >= 16) G.onWin();
     },
@@ -683,6 +683,8 @@
       }
     },
   };
+
+  G.war = war; // exposed for HUD objective line
 
   G.groveCount = function () { var n = 0; for (var i = 0; i < G.city.territories.length; i++) if (G.city.territories[i].owner === 'grove') n++; return n; };
 
@@ -759,8 +761,16 @@
   // =====================================================================
   G.togglePause = function () {
     if (G.hud._ammuOpen) { G.hud.closeAmmu(); return; }
+    if (G.mapOpen) { G.toggleMap(); return; }
     G.paused = !G.paused; G.hud.showPause(G.paused);
     if (G.paused && document.exitPointerLock) document.exitPointerLock();
+  };
+  G.mapOpen = false;
+  G.toggleMap = function () {
+    if (G.paused || G.over) return;
+    G.mapOpen = !G.mapOpen;
+    document.getElementById('bigmap-wrap').style.display = G.mapOpen ? 'flex' : 'none';
+    if (G.mapOpen) G.hud.drawBigMap();
   };
   G.toggleMute = function () { G.muted = !G.muted; U.audio.setMuted(G.muted); G.notify(G.muted ? 'MUTED' : 'UNMUTED'); };
 
@@ -787,7 +797,7 @@
     requestAnimationFrame(loop);
     var dt = Math.min(G.clock.getDelta(), 0.05);
     if (!G.started) { return; }
-    if (G.paused || G.over) { G.renderer.render(G.scene, G.camera); if (G.over && !G._won) { /* during busted/wasted fade keep rendering */ } return; }
+    if (G.paused || G.over || G.mapOpen) { G.renderer.render(G.scene, G.camera); return; }
     G.time.elapsed += dt;
 
     // input -> player

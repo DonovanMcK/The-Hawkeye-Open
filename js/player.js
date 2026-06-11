@@ -6,7 +6,8 @@
   function Player() {
     this.x = 0; this.z = 0; this.y = 0; this.vy = 0; this.onGround = true;
     this.angle = 0;
-    this.hp = 100; this.maxHp = 100; this.armor = 0; this.maxArmor = 100;
+    this.hp = G.cfg.PLAYER_HP; this.maxHp = G.cfg.PLAYER_HP;
+    this.armor = 100; this.maxArmor = 100; // start with a bulletproof vest
     this.alive = true;
     this.inCar = null;
     this.sprint = false; this.fireCd = 0; this.spinT = 0;
@@ -80,6 +81,7 @@
       K[e.code] = true;
       if (e.code === 'Escape') G.togglePause();
       if (e.code === 'KeyM') G.toggleMute();
+      if (e.code === 'Tab') { e.preventDefault(); G.toggleMap(); return; }
       if (G.paused || G.over) return;
       if (e.code === 'KeyF') self.enterExit();
       if (e.code === 'KeyG') self.recruitAction();
@@ -171,10 +173,14 @@
     this.spinT = 0.06; // muzzle anim
     // heat for firing a gun in public
     if (w.id !== 'fists' && this.fireHeatCd <= 0) { G.addHeat(G.HEAT.fireGun); this.fireHeatCd = 3; }
-    // origin + direction
+    // origin + direction — converge shots on the crosshair: aim at the far point of
+    // the camera's center ray, then shoot from the muzzle toward it (kills the
+    // parallax between the over-shoulder camera and the player's gun)
     var origin = new THREE.Vector3(this.x, this.inCar ? 1.0 : 1.5, this.z);
     var yaw = G.input.yaw, pitch = G.input.pitch;
-    var dir = new THREE.Vector3(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch));
+    var aimDir = new THREE.Vector3(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch));
+    var camTarget = G.camera.position.clone().addScaledVector(aimDir, Math.max(25, w.range));
+    var dir = camTarget.sub(origin).normalize();
     if (w.id === 'fists') { G.combat.playerMelee(origin, dir, w); U.audio.sfx('punch'); return; }
     U.audio.sfx(w.sfx);
     if (w.id === 'rpg') { U.audio.sfx('rpgwhoosh'); }
@@ -250,6 +256,7 @@
       best.maxHp = G.cfg.RECRUIT_HP; best.hp = best.maxHp; best.weapon = (G.respect >= 50) ? 'uzi' : 'pistol'; best.armed = true; best.melee = false;
       best.parts.torso.material.emissive = new THREE.Color(0x3da35d); best.parts.torso.material.emissiveIntensity = 0.4;
       G.crew.push(best); U.audio.sfx('recruit'); G.notify('HOMIE RECRUITED (' + G.crew.length + '/' + cap + ')');
+      G.notify(U.pick(G.QUIPS.recruit));
     }
   };
   Player.prototype.dismiss = function (p) {
@@ -287,9 +294,9 @@
     var speed = this.sprint ? 9 : 5;
     if (this.scoped || this.slot === 'minigun') speed *= 0.5;
     if (mag > 0.01) {
-      // movement relative to camera yaw
+      // movement relative to camera yaw; screen-right is world (-cos yaw, sin yaw)
       var fwd = { x: Math.sin(yaw), z: Math.cos(yaw) };
-      var right = { x: Math.cos(yaw), z: -Math.sin(yaw) };
+      var right = { x: -Math.cos(yaw), z: Math.sin(yaw) };
       var dx = (fwd.x * mz + right.x * mx), dz = (fwd.z * mz + right.z * mx);
       var dl = Math.sqrt(dx * dx + dz * dz) || 1;
       var nx = this.x + dx / dl * speed * dt, nz = this.z + dz / dl * speed * dt;
@@ -328,7 +335,8 @@
     var fwd = 0, steer = 0;
     if (G.input.touch) { fwd = -G.input.joyY; steer = G.input.joyX; }
     else { if (K['KeyW']) fwd += 1; if (K['KeyS']) fwd -= 1; if (K['KeyA']) steer -= 1; if (K['KeyD']) steer += 1; }
-    car.control.forward = fwd; car.control.steer = steer;
+    // negative steer turns toward screen-right in our heading convention
+    car.control.forward = fwd; car.control.steer = -steer;
     car.control.handbrake = (K['Space'] || G.input.brakeHeld);
     // player follows car
     this.x = car.x; this.z = car.z; this.angle = car.angle;
