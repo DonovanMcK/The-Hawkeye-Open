@@ -78,6 +78,7 @@
     this.aggro = false; this.target = null; this.recruit = (team === 'recruit');
     this.fireCd = 0; this.stateT = 0; this.scared = false; this.arrestT = 0;
     this.moveSpeed = (team === 'cop' || team === 'swat') ? 5.2 : (team === 'recruit' ? 5.5 : U.rand(3.2, 4.4));
+    this.bounty = false;
     // weapon
     this.armed = false; this.weapon = null;
     pickWeaponForTeam(this);
@@ -99,6 +100,7 @@
     }
     this.mesh.position.set(x, 0, z);
     this.mesh.rotation.y = this.angle;
+    this.mesh.scale.set(1, 1, 1);
     if (this.recruit) markRecruit(this, true);
     return this;
   };
@@ -182,6 +184,8 @@
     this.alive = false; this.state = 'dead'; this.deadT = 8;
     this.ragdoll = { spin: U.rand(-3, 3), tip: 0, vy: U.rand(1.5, 3) };
     var byPlayer = (attacker === G.player) || (attacker && attacker.recruit);
+    if (attacker === G.player && G.rampage.active) G.rampage.kills++;
+    if (this.bounty) { this.bounty = false; if (G.onBountyKilled) G.onBountyKilled(this); }
     // scoring / heat / respect / pickups
     if (this.team === 'civilian') {
       if (byPlayer) { G.addHeat(G.HEAT.killCivilian); }

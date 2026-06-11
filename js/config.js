@@ -93,6 +93,7 @@
     lowrider:{ name: 'Lowrider',maxSpeed: 26, accel: 14, color: 0x2e7d32, gang: 'grove' },
     taxi:    { name: 'Taxi',    maxSpeed: 27, accel: 16, color: 0xf1c40f, gang: null },
     police:  { name: 'Police',  maxSpeed: 34, accel: 20, color: 0x1c3f6e, gang: null },
+    bike:    { name: 'Dirt Bike', maxSpeed: 36, accel: 28, color: 0xd35400, gang: null },
   };
 
   // building tints
@@ -135,6 +136,13 @@
 
   G.notify = function () {};   // assigned by hud
   G.income = { timer: 0 };
+
+  // skills (0-100): improve with use — sprint speed, weapon spread, car accel
+  G.skills = { run: 0, shoot: 0, drive: 0 };
+  G.rampage = { active: false, t: 0, kills: 0, prev: null, prevSlot: 'pistol' };
+  G.mission = null;     // active bounty {target}
+  G.fare = null;        // active taxi fare {x,z,t}
+  G.radioStation = 1;   // 0 off, 1-2 stations; remembered between cars
 
   G.U = window.U;
   window.G = G;

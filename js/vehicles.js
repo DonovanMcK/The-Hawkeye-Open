@@ -7,6 +7,7 @@
     var def = G.VEHICLES[arch];
     var grp = new THREE.Group();
     var bodyMat = new THREE.MeshLambertMaterial({ color: def.color });
+    if (arch === 'bike') return buildBike(grp, bodyMat);
     var chassis = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.8, 4.4), bodyMat);
     chassis.position.y = 0.7; grp.add(chassis);
     var cabinMat = new THREE.MeshLambertMaterial({ color: (def.color === 0xf1c40f) ? 0x222222 : 0x222a33 });
@@ -41,6 +42,27 @@
     return { group: grp, chassis: chassis, wheels: wheels, lights: lights, bodyMat: bodyMat };
   }
 
+  function buildBike(grp, bodyMat) {
+    var frame = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.45, 2.0), bodyMat);
+    frame.position.y = 0.85; grp.add(frame);
+    var seat = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.16, 0.7), new THREE.MeshLambertMaterial({ color: 0x222222 }));
+    seat.position.set(0, 1.1, -0.45); grp.add(seat);
+    var bars = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.08, 0.08), new THREE.MeshLambertMaterial({ color: 0x333333 }));
+    bars.position.set(0, 1.28, 0.75); grp.add(bars);
+    var wMat = new THREE.MeshLambertMaterial({ color: 0x111111 });
+    var wheels = [];
+    var wp = [1.0, -1.0];
+    for (var i = 0; i < 2; i++) {
+      var wg = new THREE.Group();
+      var w = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.22, 8), wMat);
+      w.rotation.z = Math.PI / 2; wg.add(w);
+      wg.position.set(0, 0.45, wp[i]); grp.add(wg); wheels.push(wg);
+    }
+    var shadow = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 2.6), new THREE.MeshBasicMaterial({ color: 0, transparent: true, opacity: 0.3, depthWrite: false }));
+    shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.04; grp.add(shadow);
+    return { group: grp, chassis: frame, wheels: wheels, lights: null, bodyMat: bodyMat };
+  }
+
   function Vehicle() {
     this.active = false; this.mesh = null;
     this.arch = 'sedan'; this.x = 0; this.z = 0; this.angle = 0;
@@ -60,6 +82,7 @@
     this.speed = 0; this.hp = 100; this.flames = 0; this.wreck = false; this.wreckT = 0;
     this.driver = null; this.occupants = []; this.isPlayer = false;
     this.copCar = (arch === 'police'); this.unloaded = false;
+    this.isBike = (arch === 'bike'); this.radius = this.isBike ? 0.9 : 1.6;
     this.control.forward = 0; this.control.steer = 0; this.control.handbrake = false;
     this.aiDir = Math.round(this.angle / (Math.PI / 2)) * (Math.PI / 2);
     if (!this.mesh || this._arch !== arch) {
@@ -140,7 +163,7 @@
     var hx = Math.sin(this.angle), hz = Math.cos(this.angle);
     var nx = this.x + hx * this.speed * dt, nz = this.z + hz * this.speed * dt;
     // building collision
-    var res = G.city.collide(nx, nz, 1.6);
+    var res = G.city.collide(nx, nz, this.radius);
     if (res.hit) {
       var impact = Math.abs(this.speed);
       this.takeDamage(impact * 0.6);
@@ -160,8 +183,10 @@
     var spin = this.speed * dt * 2;
     for (var i = 0; i < this.wheels.length; i++) {
       this.wheels[i].children[0].rotation.x += spin;
-      if (i < 2) this.wheels[i].rotation.y = this.control.steer * 0.4;
+      if (i < (this.isBike ? 1 : 2)) this.wheels[i].rotation.y = this.control.steer * 0.4;
     }
+    // bike leans into turns
+    if (this.isBike) this.mesh.rotation.z = -this.control.steer * U.clamp(Math.abs(this.speed) / this.maxSpeed, 0, 1) * 0.35;
   };
 
   Vehicle.prototype._runOverPeds = function (nx, nz) {
@@ -179,7 +204,7 @@
     for (var i = 0; i < G.vehicles.length; i++) {
       var v = G.vehicles[i]; if (v === this || !v.active || v.wreck) continue;
       var d = U.dist(nx, nz, v.x, v.z);
-      if (d < 3.2) {
+      if (d < this.radius + (v.radius || 1.6)) {
         var dx = (nx - v.x) / (d || 1), dz = (nz - v.z) / (d || 1);
         v.x -= dx * 0.5; v.z -= dz * 0.5;
         var imp = Math.abs(this.speed) * 0.4;
@@ -275,7 +300,7 @@
     this.startEngine();
   };
   Vehicle.prototype.boardRecruit = function (ped) {
-    if (this.occupants.length >= 4) return false;
+    if (this.isBike || this.occupants.length >= 4) return false;
     this.occupants.push(ped); ped.mesh.visible = false; ped.inCar = this; return true;
   };
 

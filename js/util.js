@@ -212,7 +212,30 @@
       case 'victory': this.blip(523, 0.18, 'square', 0.22); setTimeout(this.blip.bind(this, 659, 0.18, 'square', 0.22), 180); setTimeout(this.blip.bind(this, 784, 0.18, 'square', 0.22), 360); setTimeout(this.blip.bind(this, 1046, 0.4, 'square', 0.24), 540); break;
       case 'pickup': this.blip(660, 0.06, 'square', 0.16); setTimeout(this.blip.bind(this, 990, 0.08, 'square', 0.16), 60); break;
       case 'empty': this.blip(200, 0.04, 'square', 0.1); break;
+      case 'hit': this.blip(950, 0.025, 'square', 0.1); break;
+      case 'kill': this.blip(700, 0.05, 'square', 0.14); setTimeout(this.blip.bind(this, 460, 0.08, 'square', 0.14), 60); break;
     }
+  };
+
+  // lo-fi G-funk radio: 8-step sequencer (kick + hat + sine bass + square lead)
+  AudioEngine.prototype.setRadio = function (station) {
+    this.radioStation = station;
+    if (this._radioTimer) { clearInterval(this._radioTimer); this._radioTimer = null; }
+    if (!this.ready || !station) return;
+    var self = this, step = 0;
+    var pat = station === 1
+      ? { bass: [55, 0, 55, 0, 65.4, 0, 49, 0], lead: [440, 0, 523, 0, 0, 587, 0, 523], bpm: 88 }
+      : { bass: [49, 49, 0, 55, 0, 58.3, 0, 55], lead: [392, 0, 0, 440, 466, 0, 440, 0], bpm: 96 };
+    var stepDur = 60 / pat.bpm / 2;
+    this._radioTimer = setInterval(function () {
+      if (self.muted) return;
+      var i = step % 8;
+      if (i % 4 === 0) self.sub(45, 0.12, 0.2);
+      self.noise(0.025, 0.035, 'highpass', 6500);
+      if (pat.bass[i]) self.blip(pat.bass[i], stepDur * 0.9, 'sine', 0.14);
+      if (pat.lead[i]) self.blip(pat.lead[i], stepDur * 0.5, 'square', 0.035);
+      step++;
+    }, stepDur * 1000);
   };
   // engine loop: a continuous saw whose pitch follows speed. Managed externally.
   AudioEngine.prototype.makeEngine = function () {

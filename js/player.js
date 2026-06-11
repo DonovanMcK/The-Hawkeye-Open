@@ -69,8 +69,8 @@
     var idx = car.occupants.indexOf(this); if (idx >= 0) car.occupants.splice(idx, 1);
     car.isPlayer = false; car.driver = null;
     this.x = car.x + Math.cos(car.angle) * 3; this.z = car.z + Math.sin(car.angle) * 3;
-    this.inCar = null; this.mesh.visible = true;
-    car.stopEngine();
+    this.inCar = null; this.mesh.visible = true; this.mesh.rotation.z = 0;
+    car.stopEngine(); U.audio.setRadio(0);
   };
 
   // ---------- input ----------
@@ -81,6 +81,7 @@
       K[e.code] = true;
       if (e.code === 'Escape') G.togglePause();
       if (e.code === 'KeyM') G.toggleMute();
+      if (e.code === 'KeyN') G.cycleRadio();
       if (e.code === 'Tab') { e.preventDefault(); G.toggleMap(); return; }
       if (G.paused || G.over) return;
       if (e.code === 'KeyF') self.enterExit();
@@ -153,6 +154,11 @@
     var w = this.curWeapon(), a = this.curAmmo();
     this.fireCd -= dt; this.fireHeatCd -= dt;
     var wantFire = G.input.mouseDown || G.input.fireHeld;
+    // drive-by: only one-handed weapons from a vehicle
+    if (this.inCar && w.id !== 'pistol' && w.id !== 'uzi') {
+      if (wantFire && U.audio.throttle('drivebyhint', 3000)) G.notify('DRIVE-BY: PISTOL OR UZI ONLY');
+      return;
+    }
     if (this.slot === 'minigun') {
       this.minigunSpin = wantFire ? Math.min(w.spinup, this.minigunSpin + dt) : Math.max(0, this.minigunSpin - dt * 2);
       if (wantFire && this.minigunSpin < w.spinup) return;
@@ -177,17 +183,19 @@
     // the camera's center ray, then shoot from the muzzle toward it (kills the
     // parallax between the over-shoulder camera and the player's gun)
     var origin = new THREE.Vector3(this.x, this.inCar ? 1.0 : 1.5, this.z);
-    var yaw = G.input.yaw, pitch = G.input.pitch;
+    var yaw = this.inCar ? this.angle : G.input.yaw, pitch = this.inCar ? 0 : G.input.pitch;
     var aimDir = new THREE.Vector3(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch));
     var camTarget = G.camera.position.clone().addScaledVector(aimDir, Math.max(25, w.range));
     var dir = camTarget.sub(origin).normalize();
     if (w.id === 'fists') { G.combat.playerMelee(origin, dir, w); U.audio.sfx('punch'); return; }
     U.audio.sfx(w.sfx);
     if (w.id === 'rpg') { U.audio.sfx('rpgwhoosh'); }
-    var aimAssist = G.input.touch ? 5 : 0;
+    // drive-by gets a wide auto-target cone; shooting skill tightens spread up to 30%
+    var aimAssist = this.inCar ? 60 : (G.input.touch ? 5 : 0);
+    var spread = w.spread * (1 - G.skills.shoot * 0.003);
     if (w.projectile) G.combat.spawnRocket(origin, dir, this);
-    else if (w.pellets) { for (var p = 0; p < w.pellets; p++) G.combat.fireHitscan(origin, jitter(dir, w.spread), w, this, aimAssist); }
-    else G.combat.fireHitscan(origin, jitter(dir, w.spread), w, this, aimAssist);
+    else if (w.pellets) { for (var p = 0; p < w.pellets; p++) G.combat.fireHitscan(origin, jitter(dir, spread), w, this, aimAssist); }
+    else G.combat.fireHitscan(origin, jitter(dir, spread), w, this, aimAssist);
   };
 
   function jitter(dir, spreadDeg) {
@@ -218,10 +226,12 @@
     } else if (car.occupants.length && car.occupants[0] !== this && !car.occupants[0].recruit) {
       G.ejectDriver(car); G.addHeat(G.HEAT.jackCar);
     }
-    car.boardPlayer(); this.inCar = car; this.mesh.visible = false;
+    car.boardPlayer(); this.inCar = car; this.mesh.visible = car.isBike;
     // recruits board as passengers
     var seated = 0;
     for (var i = 0; i < G.crew.length && seated < 3; i++) { if (car.boardRecruit(G.crew[i])) seated++; }
+    U.audio.setRadio(G.radioStation);
+    if (car.arch === 'taxi' && !G.fare && G.startFare) G.startFare();
   };
   Player.prototype.exitCar = function () {
     var car = this.inCar; if (!car) return;
@@ -229,6 +239,8 @@
     car.isPlayer = false; car.driver = null; car.stopEngine();
     this.x = car.x + Math.cos(car.angle) * 2.5; this.z = car.z + Math.sin(car.angle) * 2.5;
     this.inCar = null; this.mesh.visible = true;
+    this.mesh.rotation.z = 0;
+    U.audio.setRadio(0);
     // drop recruits out
     for (var i = 0; i < car.occupants.length; i++) { var o = car.occupants[i]; if (o.recruit) { o.inCar = null; o.mesh.visible = true; o.x = car.x - Math.cos(car.angle) * 2; o.z = car.z - Math.sin(car.angle) * 2; } }
     car.occupants = car.occupants.filter(function (o) { return !o.recruit; });
@@ -291,7 +303,8 @@
     }
     var mag = Math.sqrt(mx * mx + mz * mz);
     this.sprint = (K['ShiftLeft'] || K['ShiftRight'] || (G.input.touch && mag > 0.9));
-    var speed = this.sprint ? 9 : 5;
+    var speed = this.sprint ? 9 * (1 + G.skills.run * 0.0015) : 5;
+    if (this.sprint && mag > 0.01) G.skills.run = Math.min(100, G.skills.run + dt * 0.5);
     if (this.scoped || this.slot === 'minigun') speed *= 0.5;
     if (mag > 0.01) {
       // movement relative to camera yaw; screen-right is world (-cos yaw, sin yaw)
@@ -335,11 +348,19 @@
     var fwd = 0, steer = 0;
     if (G.input.touch) { fwd = -G.input.joyY; steer = G.input.joyX; }
     else { if (K['KeyW']) fwd += 1; if (K['KeyS']) fwd -= 1; if (K['KeyA']) steer -= 1; if (K['KeyD']) steer += 1; }
-    // negative steer turns toward screen-right in our heading convention
-    car.control.forward = fwd; car.control.steer = -steer;
+    // negative steer turns toward screen-right in our heading convention;
+    // driving skill adds up to +10% acceleration
+    car.control.forward = fwd * (1 + G.skills.drive * 0.001); car.control.steer = -steer;
     car.control.handbrake = (K['Space'] || G.input.brakeHeld);
+    if (Math.abs(car.speed) > 8) G.skills.drive = Math.min(100, G.skills.drive + dt * 0.6);
     // player follows car
     this.x = car.x; this.z = car.z; this.angle = car.angle;
+    // bike rider stays visible, seated on the frame
+    if (car.isBike) {
+      this.mesh.visible = true;
+      this.mesh.position.set(car.x, 0.5, car.z);
+      this.mesh.rotation.y = car.angle; this.mesh.rotation.z = car.mesh.rotation.z;
+    }
   };
 
   Player.prototype.updateCamera = function (dt) {

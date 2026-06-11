@@ -34,6 +34,20 @@
 
   HUD.setScope = function (on) { this.scope.style.display = on ? 'block' : 'none'; };
 
+  // crosshair hit feedback: white X on hit, red on kill, HEADSHOT tag
+  HUD.hitMarker = function (killed, headshot) {
+    var el = $('hitmarker');
+    el.style.display = 'block';
+    el.className = killed ? 'kill' : '';
+    clearTimeout(this._hmT);
+    this._hmT = setTimeout(function () { el.style.display = 'none'; }, killed ? 170 : 90);
+    if (headshot) {
+      var h = $('headshot'); h.style.display = 'block';
+      clearTimeout(this._hsT);
+      this._hsT = setTimeout(function () { h.style.display = 'none'; }, 550);
+    }
+  };
+
   HUD.update = function (dt) {
     var p = G.player;
     // notifications
@@ -68,11 +82,14 @@
     // car hp
     if (p.inCar) { this.elCarWrap.style.display = 'block'; this.setBar('carhp', this.elCarHp, p.inCar.hp / 100); }
     else if (this.elCarWrap.style.display !== 'none') this.elCarWrap.style.display = 'none';
-    // objective line
+    // objective line (priority: rampage > war > defense > fare > bounty > default)
     var obj, contested = null;
     for (var ci = 0; ci < G.city.territories.length; ci++) if (G.city.territories[ci].contested) { contested = G.city.territories[ci]; break; }
-    if (G.war && G.war.active) obj = 'GANG WAR — SURVIVE WAVE ' + G.war.wave + '/3';
+    if (G.rampage.active) obj = 'RAMPAGE! ' + G.rampage.kills + '/20 KILLS — ' + Math.ceil(G.rampage.t) + 's';
+    else if (G.war && G.war.active) obj = 'GANG WAR — SURVIVE WAVE ' + G.war.wave + '/3';
     else if (contested) obj = 'TURF UNDER ATTACK — GET THERE! ' + Math.max(0, Math.ceil(contested.contestTimer)) + 's';
+    else if (G.fare) obj = 'FARE: YELLOW $ BLIP — ' + Math.ceil(G.fare.t) + 's';
+    else if (G.mission) obj = 'BOUNTY: KILL THE LIEUTENANT (RED ! BLIP)';
     else obj = 'TERRITORIES ' + G.groveCount() + '/16 — KILL 3 RIVALS IN THEIR TURF';
     if (this.last.obj !== obj) { this.elObj.textContent = obj; this.last.obj = obj; }
     // radar
@@ -126,6 +143,10 @@
     this.radarIcon(ctx, lm.hospital, px, pz, scale, R, '#ff5555', 'H');
     this.radarIcon(ctx, lm.police, px, pz, scale, R, '#5588ff', 'P');
     this.radarIcon(ctx, { x: lm.ammu.x, z: lm.ammu.z }, px, pz, scale, R, '#ffe000', '$');
+    // active objectives
+    if (G.mission && G.mission.target && G.mission.target.alive) this.radarIcon(ctx, G.mission.target, px, pz, scale, R, '#ff2020', '!');
+    if (G.fare) this.radarIcon(ctx, G.fare, px, pz, scale, R, '#ffe000', '$');
+    if (G.hqMarker && !G.mission) this.radarIcon(ctx, G.hqMarker, px, pz, scale, R, '#3da35d', 'B');
     ctx.restore();
     // player arrow (fixed, points up)
     ctx.fillStyle = '#ffffff'; ctx.beginPath();
@@ -177,6 +198,9 @@
     this.mapIcon(ctx, mx(lm.hospital.x), mz(lm.hospital.z), '#ff5555', 'H', 'HOSPITAL');
     this.mapIcon(ctx, mx(lm.police.x), mz(lm.police.z), '#5588ff', 'P', 'POLICE');
     this.mapIcon(ctx, mx(lm.ammu.x), mz(lm.ammu.z), '#ffe000', '$', 'AMMU-NATION');
+    if (G.hqMarker) this.mapIcon(ctx, mx(G.hqMarker.x), mz(G.hqMarker.z), '#3da35d', 'B', 'BOUNTY HQ');
+    if (G.mission && G.mission.target && G.mission.target.alive) this.mapIcon(ctx, mx(G.mission.target.x), mz(G.mission.target.z), '#ff2020', '!', 'TARGET');
+    if (G.fare) this.mapIcon(ctx, mx(G.fare.x), mz(G.fare.z), '#ffe000', '$', 'FARE');
     // crew blips
     for (var c = 0; c < G.crew.length; c++) {
       ctx.fillStyle = '#7fff7f'; ctx.beginPath(); ctx.arc(mx(G.crew[c].x), mz(G.crew[c].z), 3.5, 0, U.TAU); ctx.fill();
@@ -236,7 +260,11 @@
   // ---------- pause ----------
   HUD.showPause = function (on) {
     var el = $('pause');
-    if (on) { el.style.display = 'flex'; $('pause-progress').textContent = 'TERRITORIES: ' + G.groveCount() + ' / 16'; }
+    if (on) {
+      el.style.display = 'flex';
+      $('pause-progress').textContent = 'TERRITORIES: ' + G.groveCount() + ' / 16';
+      $('pause-stats').textContent = 'SKILLS — RUNNING ' + Math.floor(G.skills.run) + '% · SHOOTING ' + Math.floor(G.skills.shoot) + '% · DRIVING ' + Math.floor(G.skills.drive) + '%';
+    }
     else el.style.display = 'none';
   };
 
@@ -297,6 +325,7 @@
     this.btn('btn-next', function (d) { if (d) G.player.cycleWeapon(1); });
     this.btn('btn-pause', function (d) { if (d) G.togglePause(); });
     this.btn('btn-map', function (d) { if (d) G.toggleMap(); });
+    this.btn('btn-radio', function (d) { if (d) G.cycleRadio(); });
 
     function changed(e) { return e.changedTouches[0]; }
     function findTouch(e, id, inChanged) {

@@ -36,6 +36,15 @@
     var safe = city.collide(G.player.x, G.player.z, 0.5); G.player.x = safe.x; G.player.z = safe.z;
     G.player.setupInput(renderer.domElement);
 
+    // Grove HQ marker (green ring near home flag) — walk in for bounty missions
+    if (groveT) {
+      var hqRing = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.2, 6, 16, 1, true),
+        new THREE.MeshBasicMaterial({ color: 0x3da35d, transparent: true, opacity: 0.35, side: THREE.DoubleSide }));
+      var hqSafe = city.collide(groveT.cx + 6, groveT.cz, 0.6);
+      hqRing.position.set(hqSafe.x, 3, hqSafe.z); scene.add(hqRing);
+      G.hqMarker = { x: hqSafe.x, z: hqSafe.z, ring: hqRing };
+    }
+
     initPools();
     G.hud.init();
 
@@ -163,6 +172,7 @@
     pk.active = true; pk.type = type; pk.value = value || 0; pk.weaponId = weaponId || null; pk.bob = 0;
     var col = 0x33cc33;
     if (type === 'ammo') col = 0xcccc33; else if (type === 'gun') col = 0x884422; else if (type === 'armor') col = 0xbbbbbb;
+    else if (type === 'rampage') col = 0xff2222;
     var safe = G.city.collide(x, z, 0.4);
     pk.mesh.material.color.setHex(col); pk.mesh.visible = true; pk.mesh.position.set(safe.x, 1, safe.z);
     pk.respawn = (type === 'gun' || type === 'ammo') && weaponId === undefined ? 0 : 0;
@@ -183,7 +193,91 @@
     else if (pk.type === 'ammo') { var w = G.player.curWeapon(); if (w.ammo) G.player.addAmmo(G.player.slot, w.mag); else G.player.addAmmo('pistol', 17); U.audio.sfx('pickup'); }
     else if (pk.type === 'gun') { G.player.giveWeapon(pk.weaponId, G.weaponById[pk.weaponId].mag * 2); U.audio.sfx('pickup'); }
     else if (pk.type === 'armor') { G.player.armor = G.player.maxArmor; U.audio.sfx('pickup'); G.notify('ARMOR +100'); }
+    else if (pk.type === 'rampage') { G.startRampage(); }
   }
+
+  // =====================================================================
+  // RAMPAGE — timed minigun + infinite ammo, 20 kills for a bonus
+  // =====================================================================
+  G.startRampage = function () {
+    if (G.rampage.active) return;
+    var w = G.player.weapons.minigun;
+    G.rampage = { active: true, t: 60, kills: 0, prev: { owned: w.owned, mag: w.mag, reserve: w.reserve }, prevSlot: G.player.slot };
+    w.owned = true; w.mag = 100; w.reserve = 9999;
+    G.player.slot = 'minigun';
+    G.notify('RAMPAGE! 20 KILLS IN 60s FOR $1000'); U.audio.sfx('alarm');
+  };
+  function updateRampage(dt) {
+    var r = G.rampage; if (!r.active) return;
+    r.t -= dt;
+    var w = G.player.weapons.minigun;
+    if (w.mag < 100) w.mag = 100; w.reserve = 9999;
+    if (r.t <= 0) {
+      r.active = false;
+      w.owned = r.prev.owned; w.mag = r.prev.mag; w.reserve = r.prev.reserve;
+      if (G.player.slot === 'minigun' && !w.owned) G.player.slot = (r.prevSlot !== 'minigun') ? r.prevSlot : 'pistol';
+      if (r.kills >= 20) { G.money += 1000; G.notify('RAMPAGE COMPLETE! +$1000'); U.audio.sfx('cash'); }
+      else G.notify('RAMPAGE OVER — ' + r.kills + '/20 KILLS');
+    }
+  }
+
+  // =====================================================================
+  // BOUNTY MISSIONS — Grove HQ marker hands out lieutenant hits
+  // =====================================================================
+  G.startBounty = function () {
+    if (G.mission) return;
+    var rivals = [];
+    for (var i = 0; i < G.city.territories.length; i++) { var t = G.city.territories[i]; if (t.owner === 'ballas' || t.owner === 'vagos') rivals.push(t); }
+    if (!rivals.length) return;
+    var pick = U.pick(rivals);
+    var safe = G.city.collide(pick.cx + U.rand(-25, 25), pick.cz + U.rand(-25, 25), 0.6);
+    var p = G.pedPool.acquire(pick.owner, safe.x, safe.z); G.peds.push(p);
+    p.hp = p.maxHp = 250; p.weapon = 'deagle'; p.armed = true; p.melee = false;
+    p.bounty = true; p.mesh.scale.set(1.18, 1.18, 1.18);
+    G.mission = { target: p };
+    G.notify('BOUNTY: ELIMINATE THE ' + G.GANGS[pick.owner].name + ' LIEUTENANT'); U.audio.sfx('radio');
+  };
+  G.onBountyKilled = function (p) {
+    if (!G.mission || G.mission.target !== p) return;
+    G.mission = null; G._bountyCd = 20;
+    G.money += 500; G.addRespect(10);
+    G.notify('BOUNTY COLLECTED! +$500'); U.audio.sfx('cash');
+  };
+  function checkHQ(dt) {
+    G._bountyCd = Math.max(0, (G._bountyCd || 0) - dt);
+    var hq = G.hqMarker; if (!hq || G.mission || G._bountyCd > 0 || G.player.inCar) return;
+    if (U.dist(G.player.x, G.player.z, hq.x, hq.z) < 2.5) G.startBounty();
+  }
+
+  // =====================================================================
+  // TAXI FARES
+  // =====================================================================
+  G.startFare = function () {
+    var t = U.pick(G.city.territories);
+    var safe = G.city.collide(t.cx + U.rand(-15, 15), t.cz + U.rand(-15, 15), 0.6);
+    G.fare = { x: safe.x, z: safe.z, t: 75 };
+    G.notify('FARE: DROP OFF AT THE YELLOW $ BLIP'); U.audio.sfx('horn');
+  };
+  function updateFare(dt) {
+    if (!G.fare) return;
+    var inTaxi = G.player.inCar && G.player.inCar.arch === 'taxi' && !G.player.inCar.wreck;
+    if (!inTaxi) { G.fare = null; G.notify('FARE CANCELLED'); return; }
+    G.fare.t -= dt;
+    if (G.fare.t <= 0) { G.fare = null; G.notify('FARE MISSED'); return; }
+    if (U.dist(G.player.x, G.player.z, G.fare.x, G.fare.z) < 7) {
+      G.money += 150; U.audio.sfx('cash'); G.notify('FARE DELIVERED +$150');
+      G.startFare();
+    }
+  }
+
+  // =====================================================================
+  // RADIO
+  // =====================================================================
+  G.cycleRadio = function () {
+    G.radioStation = (G.radioStation + 1) % 3;
+    U.audio.setRadio(G.player.inCar ? G.radioStation : 0);
+    G.notify(G.radioStation ? 'RADIO: BOUNCE FM ' + G.radioStation : 'RADIO OFF');
+  };
 
   // =====================================================================
   // COMBAT
@@ -264,9 +358,16 @@
     spawnTracer(origin.x, origin.y, origin.z, ex, ey, ez);
     if (hitEnt) {
       G.spawnParticle('spark', ex, ey, ez);
+      var killed = false;
       if (hitEnt === G.player) G.player.takeDamage(w.dmg, shooter);
-      else if (hitEnt.takeDamage && hitEnt.spawn) hitEnt.takeDamage(w.dmg, headshot, shooter); // ped
+      else if (hitEnt.takeDamage && hitEnt.spawn) killed = hitEnt.takeDamage(w.dmg, headshot, shooter); // ped
       else if (hitEnt.takeDamage) hitEnt.takeDamage(w.dmg); // vehicle
+      // hit feedback + shooting skill for the player
+      if (shooter === G.player && hitEnt !== G.player) {
+        G.skills.shoot = Math.min(100, G.skills.shoot + 0.3);
+        G.hud.hitMarker(killed, headshot);
+        if (U.audio.throttle('hitsfx', 70)) U.audio.sfx(killed ? 'kill' : 'hit');
+      }
     }
   };
 
@@ -470,27 +571,32 @@
       var pt = this.randEdgePoint(30, 70);
       // snap onto nearest road gridline
       var snapped = snapToRoad(pt.x, pt.z); if (!snapped) return;
-      var arch = U.pick(['sedan', 'sedan', 'sports', 'taxi', 'lowrider']);
+      var arch = U.pick(['sedan', 'sedan', 'sports', 'taxi', 'lowrider', 'bike']);
       var v = G.vehiclePool.acquire(arch, snapped.x, snapped.z, snapped.angle); G.vehicles.push(v);
       v.driver = { npc: true };
     },
     spawnParked: function () {
       if (G.vehicles.length >= G.cfg.CAP_VEH) return;
       var pt = this.randEdgePoint(15, 60);
-      var arch = U.pick(['sedan', 'sports', 'taxi', 'lowrider']);
+      var arch = U.pick(['sedan', 'sports', 'taxi', 'lowrider', 'bike']);
       var v = G.vehiclePool.acquire(arch, pt.x, pt.z, U.rand(0, U.TAU)); G.vehicles.push(v);
       v.driver = null;
     },
     update: function (dt) {
       this.civTimer -= dt; this.gangTimer -= dt; this.vehTimer -= dt;
+      this.rampTimer = (this.rampTimer === undefined ? 45 : this.rampTimer) - dt;
       if (this.civTimer <= 0) { this.civTimer = 1.5; this.spawnCivilian(false); }
       if (this.gangTimer <= 0) { this.gangTimer = 5; this.spawnGang(); }
       if (this.vehTimer <= 0) { this.vehTimer = 4; this.spawnTraffic(); }
-      // despawn far entities (not crew/cops/war)
+      if (this.rampTimer <= 0) {
+        this.rampTimer = 90;
+        if (!G.rampage.active) { var rp = this.randEdgePoint(25, 55); G.spawnPickup('rampage', rp.x, rp.z, 0); G.notify('RAMPAGE PICKUP NEARBY (RED)'); }
+      }
+      // despawn far entities (not crew/cops/war/bounty)
       var fog = G.cfg.FOG_FAR + 30;
       for (var i = G.peds.length - 1; i >= 0; i--) {
         var p = G.peds[i];
-        if (p.active && p.alive && !p.recruit && p.team !== 'cop' && p.team !== 'swat' && !p.warAttacker) {
+        if (p.active && p.alive && !p.recruit && !p.bounty && p.team !== 'cop' && p.team !== 'swat' && !p.warAttacker) {
           if (U.dist(p.x, p.z, G.player.x, G.player.z) > fog) p.despawn();
         }
       }
@@ -803,6 +909,9 @@
     // input -> player
     G.player.update(dt);
     checkAmmu();
+    checkHQ(dt);
+    updateRampage(dt);
+    updateFare(dt);
 
     // peds AI (throttle far)
     var px = G.player.x, pz = G.player.z;

@@ -122,12 +122,14 @@ var sandbox = {
   performance: { now: function () { return Date.now(); } },
   requestAnimationFrame: function (cb) { rafCb = cb; return 1; },
   cancelAnimationFrame: noop2,
-  setTimeout: function (fn, ms) { return setTimeout(fn, 0); },
-  clearTimeout: clearTimeout,
+  // run timeouts synchronously so respawn/fade flows complete inside the frame loop
+  setTimeout: function (fn) { try { fn(); } catch (e) { console.error('timeout cb error:', e); process.exitCode = 1; } return 0; },
+  clearTimeout: noop2,
   console: console,
   Float32Array: Float32Array, Uint16Array: Uint16Array, Uint32Array: Uint32Array,
   Math: Math, Date: Date, JSON: JSON, parseInt: parseInt, parseFloat: parseFloat,
   isNaN: isNaN, Object: Object, Array: Array,
+  setInterval: function () { return 0; }, clearInterval: noop2,
 };
 sandbox.window = sandbox;
 sandbox.global = sandbox;
@@ -162,6 +164,7 @@ try {
   for (var i = 0; i < 600; i++) {
     // wander a bit
     G.input.keys['KeyW'] = (i % 3 !== 0);
+    G.input.keys['ShiftLeft'] = true; // sprint when moving (run skill)
     G.input.yaw += 0.01;
     if (i === 20) { G.input.mouseDown = true; }                 // start firing pistol
     if (i === 40) { G.player.selectSlot(6); }                   // AK
@@ -184,7 +187,21 @@ try {
     if (i === 290) { var car = G.vehiclePool.acquire('sedan', G.player.x + 2, G.player.z, 0); G.vehicles.push(car); car.driver = { npc: true }; G.player.enterExit(); }
     if (i >= 291 && i < 320) { G.input.keys['KeyW'] = true; } // drive
     if (i === 320) { G.player.enterExit(); } // exit
-    if (i === 340) { G.player.takeDamage(250, null); } // wasted path
+    // --- feature pack tests ---
+    if (i === 325) { G.startBounty(); }
+    if (i === 327 && G.mission) { G.mission.target.die(G.player); } // bounty collect
+    if (i === 330) { G.startRampage(); }
+    if (i === 332) { var rk2 = G.pedPool.acquire('ballas', G.player.x + 1, G.player.z); G.peds.push(rk2); rk2.die(G.player); } // rampage kill count
+    if (i === 335) { var tx = G.vehiclePool.acquire('taxi', G.player.x + 2, G.player.z, 0); G.vehicles.push(tx); G.player.enterCar(tx); } // taxi -> fare
+    if (i === 336) { G.player.selectSlot(2); G.input.mouseDown = true; } // drive-by (pistol from car)
+    if (i === 337 && G.fare) { var tc = G.player.inCar; tc.x = G.fare.x; tc.z = G.fare.z; } // deliver fare
+    if (i === 344) { G.input.mouseDown = false; }
+    if (i === 345 && G.player.inCar) { G.player.exitCar(); } // cancels chained fare
+    if (i === 350) { G.cycleRadio(); G.cycleRadio(); G.cycleRadio(); } // through stations + off
+    if (i === 355) { var bk = G.vehiclePool.acquire('bike', G.player.x + 2, G.player.z, 0); G.vehicles.push(bk); G.player.enterCar(bk); }
+    if (i >= 356 && i < 395) { G.input.keys['KeyW'] = true; } // ride the bike (drive skill)
+    if (i === 395 && G.player.inCar) { G.player.exitCar(); }
+    if (i === 470) { G.player.takeDamage(900, null); } // wasted path (after vest+150hp)
     if (i === 400) { G.togglePause(); }
     if (i === 410) { G.togglePause(); }
     if (i === 420) { G.toggleMap(); }
@@ -197,5 +214,6 @@ try {
 } catch (e) { fail('frame loop', e); }
 
 console.log('frames OK. money=' + Math.floor(G.money) + ' stars=' + G.stars + ' respect=' + G.respect + ' kills=' + G.kills + ' crew=' + G.crew.length + ' grove=' + G.groveCount() + ' won=' + G._won);
+console.log('features: rampageKills=' + G.rampage.kills + ' skills=' + JSON.stringify({ run: Math.floor(G.skills.run), shoot: Math.floor(G.skills.shoot), drive: Math.floor(G.skills.drive) }) + ' mission=' + (G.mission ? 'active' : 'done') + ' fare=' + (G.fare ? 'active' : 'none'));
 console.log('peds=' + G.peds.length + ' vehicles=' + G.vehicles.length + ' particles=' + G.particles.length + ' bullets=' + G.bullets.length);
 console.log('SMOKE TEST PASSED');

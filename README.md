@@ -42,6 +42,7 @@ Take over San Andreas. The city is split into **16 territories** owned by your g
 | R | Reload |
 | 1–9, mouse wheel, `[` / `]` | Switch weapons |
 | Tab | Full-screen city map (labeled territories + landmarks) |
+| N | Cycle radio stations (in a vehicle) |
 | M | Mute |
 | Esc | Pause |
 
@@ -81,6 +82,18 @@ Take over San Andreas. The city is split into **16 territories** owned by your g
   arcade driving, jacking, traffic, and a damage → smoke → fire → explosion chain.
 - **Day/night cycle:** a full day runs in 240 seconds; dusk turns the city orange and
   foggy, and street lamps + lit windows glow at night.
+- **Drive-bys:** fire the Pistol or Micro-Uzi from any vehicle with a wide auto-target
+  cone.
+- **Bounty missions:** walk into the green ring at Grove HQ (your home turf flag) to get
+  a lieutenant hit — a tough marked target in rival turf, $500 + respect on completion.
+- **Rampages:** grab a red pickup for 60 seconds of infinite minigun; 20 kills pays $1000.
+- **Taxi fares:** hop in a taxi and deliver fares to the yellow blip against the clock,
+  $150 each, chained back-to-back.
+- **Skills:** Running, Shooting, and Driving improve with use (faster sprint, tighter
+  spread, quicker acceleration) — check your levels on the pause screen.
+- **Dirt bike:** fast, agile two-wheeler that leans into turns; the rider stays visible.
+- **Radio:** two synthesized lo-fi G-funk stations play in vehicles (N to switch/off).
+- **Hit feedback:** crosshair X markers on hits (red on kills) and a HEADSHOT tag.
 
 ---
 
