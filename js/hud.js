@@ -34,6 +34,15 @@
 
   HUD.setScope = function (on) { this.scope.style.display = on ? 'block' : 'none'; };
 
+  // comic "POW!" flash for beast-mode kills
+  HUD.pow = function () {
+    var el = $('pow');
+    el.style.display = 'block';
+    el.style.transform = 'translate(-50%,-50%) rotate(' + U.rand(-20, 20) + 'deg) scale(' + U.rand(0.9, 1.3) + ')';
+    clearTimeout(this._powT);
+    this._powT = setTimeout(function () { el.style.display = 'none'; }, 380);
+  };
+
   // crosshair hit feedback: white X on hit, red on kill, HEADSHOT tag
   HUD.hitMarker = function (killed, headshot) {
     var el = $('hitmarker');
@@ -86,8 +95,11 @@
     var obj, contested = null;
     for (var ci = 0; ci < G.city.territories.length; ci++) if (G.city.territories[ci].contested) { contested = G.city.territories[ci]; break; }
     if (G.rampage.active) obj = 'RAMPAGE! ' + G.rampage.kills + '/20 KILLS — ' + Math.ceil(G.rampage.t) + 's';
+    else if (G.beast.active) obj = 'BEAST MODE! ' + Math.ceil(G.beast.t) + 's';
+    else if (G.challenge) obj = 'DEATHWISH: SURVIVE ' + Math.max(0, Math.ceil(G.challenge.t)) + 's';
     else if (G.war && G.war.active) obj = 'GANG WAR — SURVIVE WAVE ' + G.war.wave + '/3';
     else if (contested) obj = 'TURF UNDER ATTACK — GET THERE! ' + Math.max(0, Math.ceil(contested.contestTimer)) + 's';
+    else if (G.convoy) obj = 'DESTROY THE CONVOY! ' + Math.max(0, Math.ceil(G.convoy.t)) + 's';
     else if (G.fare) obj = 'FARE: YELLOW $ BLIP — ' + Math.ceil(G.fare.t) + 's';
     else if (G.mission) obj = 'BOUNTY: KILL THE LIEUTENANT (RED ! BLIP)';
     else obj = 'TERRITORIES ' + G.groveCount() + '/16 — KILL 3 RIVALS IN THEIR TURF';
@@ -144,6 +156,12 @@
     this.radarIcon(ctx, lm.police, px, pz, scale, R, '#5588ff', 'P');
     this.radarIcon(ctx, { x: lm.ammu.x, z: lm.ammu.z }, px, pz, scale, R, '#ffe000', '$');
     // active objectives
+    if (G.convoy) {
+      for (var cv = 0; cv < G.convoy.cars.length; cv++) {
+        var cc = G.convoy.cars[cv];
+        if (cc.active && !cc.wreck && cc.convoy) blip(cc.x, cc.z, G.GANGS[G.convoy.gang].color, 4);
+      }
+    }
     if (G.mission && G.mission.target && G.mission.target.alive) this.radarIcon(ctx, G.mission.target, px, pz, scale, R, '#ff2020', '!');
     if (G.fare) this.radarIcon(ctx, G.fare, px, pz, scale, R, '#ffe000', '$');
     if (G.hqMarker && !G.mission) this.radarIcon(ctx, G.hqMarker, px, pz, scale, R, '#3da35d', 'B');

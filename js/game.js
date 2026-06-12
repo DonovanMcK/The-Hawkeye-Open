@@ -60,6 +60,21 @@
     G.beaconMission = makeBeacon(0xff2020);
     G.beaconFare = makeBeacon(0xffe000);
 
+    // stunt ramps along roads
+    var rampMat = new THREE.MeshLambertMaterial({ color: 0xb5b0a6 });
+    var rampGeo = new THREE.BoxGeometry(4.4, 2.4, 7);
+    for (var ri = 0; ri < 10; ri++) {
+      var rx = G.city.worldMin + U.rand(0.15, 0.85) * city.span;
+      var rz = G.city.worldMin + (U.randInt(1, G.cfg.BLOCKS - 1)) * city.period + (U.chance(0.5) ? 3 : -3);
+      if (!city.onRoad(rx, rz)) { rz = G.city.worldMin + U.randInt(1, G.cfg.BLOCKS - 1) * city.period; }
+      var rm = new THREE.Mesh(rampGeo, rampMat);
+      var rdir = U.chance(0.5) ? 0 : Math.PI / 2;
+      rm.position.set(rx, -0.7, rz);
+      rm.rotation.y = rdir; rm.rotation.x = -0.32;
+      scene.add(rm);
+      G.ramps.push({ x: rx, z: rz });
+    }
+
     initPools();
     G.hud.init();
 
@@ -187,7 +202,7 @@
     pk.active = true; pk.type = type; pk.value = value || 0; pk.weaponId = weaponId || null; pk.bob = 0;
     var col = 0x33cc33;
     if (type === 'ammo') col = 0xcccc33; else if (type === 'gun') col = 0x884422; else if (type === 'armor') col = 0xbbbbbb;
-    else if (type === 'rampage') col = 0xff2222;
+    else if (type === 'rampage') col = 0xff2222; else if (type === 'beast') col = 0x9b30ff;
     var safe = G.city.collide(x, z, 0.4);
     pk.mesh.material.color.setHex(col); pk.mesh.visible = true; pk.mesh.position.set(safe.x, 1, safe.z);
     pk.respawn = (type === 'gun' || type === 'ammo') && weaponId === undefined ? 0 : 0;
@@ -209,7 +224,132 @@
     else if (pk.type === 'gun') { G.player.giveWeapon(pk.weaponId, G.weaponById[pk.weaponId].mag * 2); U.audio.sfx('pickup'); }
     else if (pk.type === 'armor') { G.player.armor = G.player.maxArmor; U.audio.sfx('pickup'); G.notify('ARMOR +100'); }
     else if (pk.type === 'rampage') { G.startRampage(); }
+    else if (pk.type === 'beast') { G.startBeast(); }
   }
+
+  // =====================================================================
+  // BEAST MODE — 30s of one-punch kills
+  // =====================================================================
+  G.startBeast = function () {
+    if (G.beast.active) return;
+    G.beast = { active: true, t: 30 };
+    G.notify('BEAST MODE! ONE-PUNCH KILLS — 30s'); U.audio.sfx('alarm');
+  };
+  function updateBeast(dt) {
+    if (!G.beast.active) return;
+    G.beast.t -= dt;
+    if (G.beast.t <= 0) { G.beast.active = false; G.notify('BEAST MODE OVER'); }
+  }
+
+  // =====================================================================
+  // HELI MAGNET — hook a car, fly it, drop it
+  // =====================================================================
+  G.heliMagnet = function () {
+    var h = G.player.inCar; if (!h || !h.isHeli) return;
+    if (G.magnetCar) {
+      var c = G.magnetCar; c.carriedBy = null; c.airborne = true; c.vy = 0; c.airT = 0;
+      G.magnetCar = null; G.notify('BOMBS AWAY!');
+      return;
+    }
+    if (h.y < 4) { G.notify('GET HIGHER TO HOOK A CAR'); return; }
+    var best = null, bd = 8;
+    for (var i = 0; i < G.vehicles.length; i++) {
+      var v = G.vehicles[i];
+      if (!v.active || v.wreck || v.isHeli || v === h || v.airborne || v.occupants.length) continue;
+      var d = U.dist(v.x, v.z, h.x, h.z);
+      if (d < bd) { bd = d; best = v; }
+    }
+    if (best) { best.carriedBy = h; G.magnetCar = best; G.notify('CAR HOOKED — E/G TO DROP'); U.audio.sfx('pickup'); }
+    else G.notify('NO CAR BELOW');
+  };
+
+  // =====================================================================
+  // RIVAL CONVOY EVENT
+  // =====================================================================
+  G.startConvoy = function () {
+    if (G.convoy) return;
+    var gang = U.pick(['ballas', 'vagos']);
+    var pt = director.randEdgePoint(50, 70);
+    var snapped = snapToRoad(pt.x, pt.z);
+    if (!snapped) return;
+    var cars = [];
+    var dx = Math.sin(snapped.angle), dz = Math.cos(snapped.angle);
+    for (var k = 0; k < 3; k++) {
+      if (G.vehicles.length >= G.cfg.CAP_VEH + 3) break;
+      var v = G.vehiclePool.acquire('lowrider', snapped.x - dx * k * 7, snapped.z - dz * k * 7, snapped.angle);
+      G.vehicles.push(v);
+      v.driver = { npc: true }; v.convoy = gang; v.hp = 160;
+      v.bodyMat.color.setHex(U.hexInt(G.GANGS[gang].color));
+      cars.push(v);
+    }
+    if (!cars.length) return;
+    G.convoy = { cars: cars, t: 90, gang: gang };
+    G.notify(G.GANGS[gang].name + ' CONVOY ROLLING — DESTROY IT!'); U.audio.sfx('alarm');
+  };
+  function updateConvoy(dt) {
+    if (!G.convoy) return;
+    G.convoy.t -= dt;
+    var alive = 0;
+    for (var i = 0; i < G.convoy.cars.length; i++) { var c = G.convoy.cars[i]; if (c.active && !c.wreck && c.convoy) alive++; }
+    if (alive === 0) {
+      G.money += 600; G.addRespect(10);
+      G.notify('CONVOY DESTROYED! +$600'); U.audio.sfx('cash');
+      G.convoy = null;
+      return;
+    }
+    if (G.convoy.t <= 0) {
+      for (var k = 0; k < G.convoy.cars.length; k++) { var ck = G.convoy.cars[k]; if (ck.active && !ck.wreck && ck.convoy) { ck.convoy = null; ck.despawn(); } }
+      G.convoy = null; G.notify('CONVOY ESCAPED');
+    }
+  }
+
+  // =====================================================================
+  // DEATHWISH CHALLENGE — survive 5 stars for 90s, $5000 pot
+  // =====================================================================
+  function checkChallenge(dt) {
+    G._chalCd = Math.max(0, (G._chalCd || 0) - dt);
+    if (G.challenge) {
+      G.challenge.t -= dt;
+      if (G.heat < G.STAR_THRESHOLDS[4]) G.heat = G.STAR_THRESHOLDS[4]; // pin 5 stars
+      if (G.stars < 5) G.stars = 5;
+      if (G.challenge.t <= 0) {
+        G.challenge = null; G._chalCd = 60;
+        G.money += 5000; G.heat = 0; G.stars = 0;
+        G.notify('DEATHWISH COMPLETE! +$5000'); U.audio.sfx('victory');
+      }
+      return;
+    }
+    var lm = G.city.landmarks.police;
+    if (!lm || lm.markerX === undefined || G.player.inCar || G._chalCd > 0) return;
+    if (U.dist(G.player.x, G.player.z, lm.markerX, lm.markerZ) < 2.5) {
+      G.challenge = { t: 90 };
+      G.addHeat(G.STAR_THRESHOLDS[4]);
+      G.notify('DEATHWISH: SURVIVE 5 STARS FOR 90s — $5000'); U.audio.sfx('alarm');
+    }
+  }
+
+  // =====================================================================
+  // CHEAT CODES (type the word during play)
+  // =====================================================================
+  var CHEATS = {
+    BIGBANG: function () { for (var i = 0; i < G.vehicles.length; i++) { var v = G.vehicles[i]; if (v.active && !v.wreck && v !== G.player.inCar) v.explode(); } },
+    MOON: function () { G.lowGravity = !G.lowGravity; },
+    CASHGOD: function () { G.money += 10000; },
+    HESOYAM: function () { G.player.hp = G.player.maxHp; G.player.armor = G.player.maxArmor; G.money += 10000; },
+    GUNS: function () { for (var i = 0; i < G.WEAPONS.length; i++) { var w = G.WEAPONS[i]; if (!w.ammo) continue; var pw = G.player.weapons[w.id]; pw.owned = true; pw.mag = w.mag; pw.reserve = w.mag * 4; } },
+    CLEAN: function () { G.heat = 0; G.stars = 0; },
+    WANTED: function () { G.addHeat(1500); },
+  };
+  G.checkCheat = function (buf) {
+    for (var code in CHEATS) {
+      if (buf.slice(-code.length) === code) {
+        CHEATS[code]();
+        G._cheatBuf = '';
+        G.notify('CHEAT ACTIVATED: ' + code); U.audio.sfx('cash');
+        return;
+      }
+    }
+  };
 
   // =====================================================================
   // RAMPAGE — timed minigun + infinite ammo, 20 kills for a bonus
@@ -258,7 +398,7 @@
   G.onBountyKilled = function (p) {
     if (!G.mission || G.mission.target !== p) return;
     G.mission = null; G._bountyCd = 20;
-    G.money += 500; G.addRespect(10);
+    G.money += 500; G.addRespect(10); G.slowmoT = 0.8;
     G.notify('BOUNTY COLLECTED! +$500'); U.audio.sfx('cash');
   };
   function checkHQ(dt) {
@@ -450,6 +590,7 @@
 
   combat.playerMelee = function (origin, dir, w) {
     // hit nearest hostile within range in front
+    var dmg = G.beast.active ? 999 : w.dmg;
     for (var i = 0; i < G.peds.length; i++) {
       var pd = G.peds[i]; if (!pd.active || !pd.alive) continue;
       if (pd.recruit || pd.team === 'grove') continue;
@@ -457,7 +598,8 @@
       if (d > w.range + 0.6) continue;
       var dot = (dx * dir.x + dz * dir.z) / (d || 1);
       if (dot > 0.4) {
-        var killed = pd.takeDamage(w.dmg, false, G.player);
+        var killed = pd.takeDamage(dmg, false, G.player);
+        if (G.beast.active) { G.camShake = Math.max(G.camShake, 0.5); if (killed) G.hud.pow(); }
         G.addHeat(G.HEAT.punch);
         return;
       }
@@ -465,12 +607,13 @@
     G.addHeat(G.HEAT.punch * 0.3);
   };
 
-  combat.spawnRocket = function (origin, dir, shooter) {
+  combat.spawnRocket = function (origin, dir, shooter, ignoreVeh) {
     var rk = null; for (var i = 0; i < rocketPool.length; i++) if (!rocketPool[i].active) { rk = rocketPool[i]; break; }
     if (!rk) return;
     rk.active = true; rk.mesh.visible = true;
     rk.x = origin.x + dir.x * 1.5; rk.y = origin.y + dir.y * 1.5; rk.z = origin.z + dir.z * 1.5;
     rk.dir = dir.clone().normalize(); rk.life = 4; rk.shooter = shooter; rk.smokeCd = 0;
+    rk.ignoreVeh = ignoreVeh || null;
     G.rockets = G.rockets || []; G.rockets.push(rk);
   };
   function updateRockets(dt) {
@@ -485,7 +628,7 @@
       if (rk.y < 0.2) hit = true;
       var boxes = G.city.queryBuildings(rk.x, rk.z);
       for (var b = 0; b < boxes.length; b++) { var bx = boxes[b]; if (rk.x >= bx.minX && rk.x <= bx.maxX && rk.z >= bx.minZ && rk.z <= bx.maxZ && rk.y < bx.top) { hit = true; break; } }
-      for (var v = 0; v < G.vehicles.length && !hit; v++) { var ve = G.vehicles[v]; if (ve.active && !ve.wreck && U.dist(rk.x, rk.z, ve.x, ve.z) < 2.5) hit = true; }
+      for (var v = 0; v < G.vehicles.length && !hit; v++) { var ve = G.vehicles[v]; if (ve === rk.ignoreVeh) continue; if (ve.active && !ve.wreck && U.dist(rk.x, rk.z, ve.x, ve.z) < 2.5) hit = true; }
       for (var p = 0; p < G.peds.length && !hit; p++) { var pd = G.peds[p]; if (pd.active && pd.alive && pd !== rk.shooter && U.dist(rk.x, rk.z, pd.x, pd.z) < 1.2) hit = true; }
       if (rk.life <= 0) hit = true;
       if (hit) { combat.explosion(rk.x, rk.z); rk.active = false; rk.mesh.visible = false; G.rockets.splice(i, 1); }
@@ -635,7 +778,17 @@
       if (this.vehTimer <= 0) { this.vehTimer = 4; this.spawnTraffic(); }
       if (this.rampTimer <= 0) {
         this.rampTimer = 90;
-        if (!G.rampage.active) { var rp = this.randEdgePoint(25, 55); G.spawnPickup('rampage', rp.x, rp.z, 0); G.notify('RAMPAGE PICKUP NEARBY (RED)'); }
+        if (!G.rampage.active && !G.beast.active) {
+          var rp = this.randEdgePoint(25, 55);
+          if (U.chance(0.5)) { G.spawnPickup('rampage', rp.x, rp.z, 0); G.notify('RAMPAGE PICKUP NEARBY (RED)'); }
+          else { G.spawnPickup('beast', rp.x, rp.z, 0); G.notify('BEAST PICKUP NEARBY (PURPLE)'); }
+        }
+      }
+      // rival convoy event
+      this.convoyTimer = (this.convoyTimer === undefined ? 100 : this.convoyTimer) - dt;
+      if (this.convoyTimer <= 0) {
+        this.convoyTimer = U.rand(150, 240);
+        if (!G.convoy && !(G.war && G.war.active)) G.startConvoy();
       }
       // keep one helicopter in the world: respawn at the HQ pad if destroyed
       this.heliTimer = (this.heliTimer === undefined ? 10 : this.heliTimer) - dt;
@@ -696,6 +849,23 @@
         var carsActive = 0; for (var i = 0; i < G.vehicles.length; i++) if (G.vehicles[i].active && G.vehicles[i].copCar) carsActive++;
         if (carsActive < resp.cars) { this.spawnCopCar(); }
         this.carTimer = 3;
+      }
+      // army Rhino at 5+ stars (steal it if you dare)
+      if (G.stars >= 5) {
+        this.tankTimer = (this.tankTimer === undefined ? 8 : this.tankTimer) - dt;
+        if (this.tankTimer <= 0) {
+          this.tankTimer = 15;
+          var hasTank = false;
+          for (var t2 = 0; t2 < G.vehicles.length; t2++) if (G.vehicles[t2].active && G.vehicles[t2].isTank && !G.vehicles[t2].wreck && G.vehicles[t2].armyUnit) { hasTank = true; break; }
+          if (!hasTank) {
+            var ts = snapToRoad(U.clamp(G.player.x + U.rand(-80, 80), G.city.worldMin + 6, G.city.worldMax - 6), U.clamp(G.player.z + U.rand(-80, 80), G.city.worldMin + 6, G.city.worldMax - 6));
+            if (ts) {
+              var tank = G.vehiclePool.acquire('tank', ts.x, ts.z, ts.angle); G.vehicles.push(tank);
+              tank.driver = { npc: true }; tank.armyUnit = true;
+              G.notify('ARMY DEPLOYED — RHINO INBOUND'); U.audio.sfx('radio');
+            }
+          }
+        }
       }
       // line of sight -> heat decay
       var seen = false;
@@ -796,6 +966,22 @@
     capture: function (t) {
       G.city.setTerritoryOwner(t, 'grove'); this.active = null;
       G.money += 1000; G.addRespect(G.RESPECT.captureTerr);
+      G.slowmoT = 1.2; // kill-cam moment
+      // surviving homies earn stripes
+      for (var h = 0; h < G.crew.length; h++) {
+        var c = G.crew[h]; if (!c.active || !c.alive) continue;
+        c.warsSurvived = (c.warsSurvived || 0) + 1;
+        if (c.warsSurvived === 1 && !c.homieName) {
+          c.homieName = G.HOMIE_NAMES[(G._nameIdx = (G._nameIdx || 0) + 1) % G.HOMIE_NAMES.length];
+          var lbl = G.makeLabel(c.homieName, '#7fff7f', 5);
+          lbl.sprite.position.y = 2.7; lbl.sprite.scale.set(4.5, 1.1, 1);
+          c.mesh.add(lbl.sprite); c.nameSprite = lbl.sprite;
+          G.notify(c.homieName + ' EARNED HIS STRIPES');
+        } else if (c.warsSurvived >= 3 && !c.og) {
+          c.og = true; c.maxHp = 200; c.hp = 200; c.weapon = 'ak'; c.armed = true; c.melee = false;
+          G.notify((c.homieName || 'HOMIE') + ' IS NOW OG — AK-47 + 200 HP');
+        }
+      }
       for (var i = 0; i < 20; i++) G.spawnParticle('firework', t.cx + U.rand(-3, 3), 2, t.cz + U.rand(-3, 3));
       U.audio.sfx('victory'); G.notify('TERRITORY CAPTURED! +$1000'); G.notify(U.pick(G.QUIPS.capture));
       this.clearWarFlags();
@@ -904,6 +1090,7 @@
   };
   function respawn(lm) {
     G.heat = 0; G.stars = 0;
+    if (G.challenge) { G.challenge = null; G._chalCd = 30; G.notify('DEATHWISH FAILED'); }
     // clear cops & wanted vehicles
     for (var i = 0; i < G.cops.length; i++) G.cops[i].despawn(); G.cops.length = 0;
     for (var v = 0; v < G.vehicles.length; v++) if (G.vehicles[v].copCar) G.vehicles[v].despawn();
@@ -957,9 +1144,12 @@
   // =====================================================================
   function loop() {
     requestAnimationFrame(loop);
-    var dt = Math.min(G.clock.getDelta(), 0.05);
+    var rawDt = Math.min(G.clock.getDelta(), 0.05);
     if (!G.started) { return; }
     if (G.paused || G.over || G.mapOpen) { G.renderer.render(G.scene, G.camera); return; }
+    // kill-cam slow motion
+    if (G.slowmoT > 0) { G.slowmoT -= rawDt; G.timeScale = 0.25; } else G.timeScale = 1;
+    var dt = rawDt * G.timeScale;
     G.time.elapsed += dt;
 
     // input -> player
@@ -967,7 +1157,10 @@
     checkAmmu();
     checkHQ(dt);
     checkHospital(dt);
+    checkChallenge(dt);
     updateRampage(dt);
+    updateBeast(dt);
+    updateConvoy(dt);
     updateFare(dt);
     updateBeacons();
 

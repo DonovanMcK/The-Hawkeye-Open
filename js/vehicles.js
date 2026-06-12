@@ -9,6 +9,7 @@
     var bodyMat = new THREE.MeshLambertMaterial({ color: def.color });
     if (arch === 'bike') return buildBike(grp, bodyMat);
     if (arch === 'heli') return buildHeli(grp, bodyMat);
+    if (arch === 'tank') return buildTank(grp, bodyMat);
     // low-poly silhouette: low full-length body + hood/trunk steps + cabin
     // with ANGLED windshields (the key PS2 car shape cue)
     var body = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.55, 4.6), bodyMat);
@@ -112,6 +113,21 @@
     return { group: grp, chassis: body, wheels: [], lights: null, bodyMat: bodyMat, rotor: rotor, tailRotor: tailRotor };
   }
 
+  function buildTank(grp, bodyMat) {
+    var hull = new THREE.Mesh(new THREE.BoxGeometry(3, 1.1, 5), bodyMat);
+    hull.position.y = 0.95; grp.add(hull);
+    var treadMat = new THREE.MeshLambertMaterial({ color: 0x2a2e26 });
+    var tl = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.95, 5.3), treadMat); tl.position.set(-1.65, 0.55, 0); grp.add(tl);
+    var tr = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.95, 5.3), treadMat); tr.position.set(1.65, 0.55, 0); grp.add(tr);
+    var turret = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.75, 2.3), bodyMat);
+    turret.position.set(0, 1.9, -0.3); grp.add(turret);
+    var barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 3.2, 6), treadMat);
+    barrel.rotation.x = Math.PI / 2; barrel.position.set(0, 1.95, 1.6); grp.add(barrel);
+    var shadow = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 5.8), new THREE.MeshBasicMaterial({ color: 0, transparent: true, opacity: 0.3, depthWrite: false }));
+    shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.04; grp.add(shadow);
+    return { group: grp, chassis: hull, wheels: [], lights: null, bodyMat: bodyMat };
+  }
+
   function Vehicle() {
     this.active = false; this.mesh = null;
     this.arch = 'sedan'; this.x = 0; this.z = 0; this.angle = 0;
@@ -134,6 +150,9 @@
     this.isBike = (arch === 'bike'); this.radius = this.isBike ? 0.9 : 1.6;
     this.isHeli = (arch === 'heli'); this.y = 0;
     if (this.isHeli) { this.radius = 2.2; this.control.climb = false; this.control.descend = false; }
+    this.isTank = (arch === 'tank'); if (this.isTank) this.radius = 2.4;
+    this.armyUnit = false; this.convoy = null; this.carriedBy = null;
+    this.airborne = false; this.vy = 0; this.airT = 0;
     this.control.forward = 0; this.control.steer = 0; this.control.handbrake = false;
     this.aiDir = Math.round(this.angle / (Math.PI / 2)) * (Math.PI / 2);
     if (!this.mesh || this._arch !== arch) {
@@ -164,6 +183,7 @@
 
   Vehicle.prototype.takeDamage = function (amt) {
     if (this.wreck) return;
+    if (this.isTank) amt *= 0.12; // armored
     this.hp -= amt;
     if (this.hp <= 0) { this.hp = 0; this.explode(); }
   };
@@ -182,14 +202,33 @@
     if (this.isPlayer) G.player.forceExit(true);
     this.occupants.length = 0; this.driver = null; this.isPlayer = false;
     this.speed = 0; this.y = 0; this.stopEngine();
+    if (G.magnetCar === this) { G.magnetCar = null; this.carriedBy = null; }
+    // convoy escorts bail out shooting
+    if (this.convoy) {
+      for (var ci = 0; ci < 2 && G.peds.length < 80; ci++) {
+        var gp = G.pedPool.acquire(this.convoy, this.x + U.rand(-2, 2), this.z + U.rand(-2, 2));
+        G.peds.push(gp); gp.aggro = true; gp.target = G.player; gp.state = 'chase';
+      }
+    }
   };
 
   Vehicle.prototype.update = function (dt) {
     if (!this.active) return;
     if (this.wreck) { this.wreckT -= dt; this._smoke(dt, true); if (this.wreckT <= 0) this.despawn(); this.mesh.position.set(this.x, 0, this.z); return; }
 
+    // magnet-carried: dangle under the helicopter, no physics
+    if (this.carriedBy) {
+      var hcar = this.carriedBy;
+      if (!hcar.active || hcar.wreck || !hcar.isHeli) { this.carriedBy = null; this.airborne = true; this.vy = 0; }
+      else {
+        this.x = hcar.x; this.z = hcar.z; this.y = Math.max(0, hcar.y - 3.4); this.angle = hcar.angle;
+        this.speed = 0;
+        this.mesh.position.set(this.x, this.y, this.z); this.mesh.rotation.y = this.angle;
+        return;
+      }
+    }
     if (!this.isPlayer) {
-      if (this.copCar) this._copAI(dt); else this._trafficAI(dt);
+      if (this.copCar || this.armyUnit) this._copAI(dt); else this._trafficAI(dt);
     }
     this._physics(dt);
     this._damageFx(dt);
@@ -205,6 +244,39 @@
 
   Vehicle.prototype._physics = function (dt) {
     if (this.isHeli) { this._heliPhysics(dt); return; }
+    // airborne ballistics (ramp launches, magnet drops)
+    if (this.airborne) {
+      this.vy -= 22 * dt; this.y += this.vy * dt; this.airT += dt;
+      var ax = this.x + Math.sin(this.angle) * this.speed * dt;
+      var az = this.z + Math.cos(this.angle) * this.speed * dt;
+      this.x = U.clamp(ax, G.city.worldMin + 2, G.city.worldMax - 2);
+      this.z = U.clamp(az, G.city.worldMin + 2, G.city.worldMax - 2);
+      if (this.y <= 0) {
+        this.y = 0; this.airborne = false;
+        if (this.vy < -14) { this.takeDamage((-this.vy - 10) * 6); U.audio.sfx('crash'); }
+        if (this.isPlayer && this.airT > 1.1 && !this.wreck) { G.money += 250; U.audio.sfx('cash'); G.notify('INSANE STUNT BONUS! +$250'); }
+        // dropped cars crush whatever's underneath
+        if (this.vy < -14) this._runOverPeds(this.x, this.z);
+        this.vy = 0; this.airT = 0;
+      }
+      this.mesh.position.set(this.x, this.y, this.z);
+      this.mesh.rotation.y = this.angle;
+      this.mesh.rotation.x = U.clamp(-this.vy * 0.02, -0.4, 0.4);
+      return;
+    }
+    this.mesh.rotation.x = 0;
+    // ramp launch
+    if (Math.abs(this.speed) > 10) {
+      for (var r = 0; r < G.ramps.length; r++) {
+        var rp = G.ramps[r];
+        if (U.dist2(this.x, this.z, rp.x, rp.z) < 12) {
+          this.airborne = true; this.airT = 0;
+          this.vy = U.clamp(Math.abs(this.speed) * 0.5, 7, 19);
+          break;
+        }
+      }
+      if (this.airborne) return;
+    }
     var c = this.control;
     var max = this.maxSpeed;
     this.speed += c.forward * this.accel * dt;
@@ -304,8 +376,9 @@
         var dx = (nx - v.x) / (d || 1), dz = (nz - v.z) / (d || 1);
         v.x -= dx * 0.5; v.z -= dz * 0.5;
         var imp = Math.abs(this.speed) * 0.4;
-        v.takeDamage(imp); this.takeDamage(imp * 0.5);
-        this.speed *= 0.6;
+        if (this.isTank) imp *= 5; // 40 tons of ram
+        v.takeDamage(imp); this.takeDamage(imp * (this.isTank ? 0.02 : 0.5));
+        this.speed *= this.isTank ? 0.9 : 0.6;
         if (imp > 4) U.audio.sfx('crash');
       }
     }
@@ -374,7 +447,7 @@
       if (G.stars >= 5 && d < 25 && G.player.inCar) { this.control.forward = 1; } // ram
     } else {
       this.control.forward = 0; this.speed *= 0.8;
-      if (!this.unloaded) { this._unload(); }
+      if (!this.unloaded && !this.isTank) { this._unload(); }
     }
   };
   Vehicle.prototype._unload = function () {
@@ -392,6 +465,7 @@
   // enter/exit helpers
   Vehicle.prototype.boardPlayer = function () {
     this.isPlayer = true; this.driver = G.player;
+    this.armyUnit = false; // stolen tanks answer to you now
     if (this.occupants.indexOf(G.player) < 0) this.occupants.push(G.player);
     this.startEngine();
   };

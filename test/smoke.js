@@ -163,7 +163,7 @@ console.log('started=' + G.started);
 function frame() { if (rafCb) { var cb = rafCb; rafCb = null; cb(); } }
 
 try {
-  for (var i = 0; i < 600; i++) {
+  for (var i = 0; i < 700; i++) {
     // wander a bit
     G.input.keys['KeyW'] = (i % 3 !== 0);
     G.input.keys['ShiftLeft'] = true; // sprint when moving (run skill)
@@ -223,6 +223,28 @@ try {
     // emotes
     if (i === 588) { G.player.emote('taunt'); }
     if (i === 595) { G.player.emote('dance'); }
+    // cheats
+    if (i === 600) { G.checkCheat('XXCASHGOD'); G.checkCheat('QQMOON'); G.checkCheat('ZZGUNS'); G.checkCheat('AACLEAN'); G.__cheatMoney = G.money; }
+    if (i === 603) { G.checkCheat('BIGBANG'); }
+    // beast mode + one-punch kill
+    if (i === 608) { G.startBeast(); var bc = G.pedPool.acquire('civilian', G.player.x + 1, G.player.z + 1); G.peds.push(bc); G.player.selectSlot(1); G.input.yaw = Math.atan2(bc.x - G.player.x, bc.z - G.player.z); G.input.mouseDown = true; }
+    if (i === 614) { G.input.mouseDown = false; }
+    // convoy: start then destroy
+    if (i === 620) { G.startConvoy(); }
+    if (i === 623 && G.convoy) { for (var cv = 0; cv < G.convoy.cars.length; cv++) G.convoy.cars[cv].explode(); }
+    // deathwish challenge: start at police ring, fast-forward to win
+    if (i === 630) { var pm = G.city.landmarks.police; G.player.x = pm.markerX; G.player.z = pm.markerZ; }
+    if (i === 634 && G.challenge) { G.challenge.t = 0.05; }
+    if (i === 639) { G.__challengeDone = !G.challenge; G.checkCheat('AACLEAN'); }
+    // tank: enter, fire cannon, exit
+    if (i === 640) { var tk = G.vehiclePool.acquire('tank', G.player.x + 3, G.player.z, 0); G.vehicles.push(tk); G.player.enterCar(tk); G.input.mouseDown = true; }
+    if (i === 648) { G.input.mouseDown = false; }
+    if (i === 652 && G.player.inCar) { G.player.exitCar(); }
+    // heli magnet: climb, hook a car, drop it
+    if (i === 656) { var h2 = G.vehiclePool.acquire('heli', G.player.x + 2, G.player.z, 0); G.vehicles.push(h2); G.player.enterCar(h2); }
+    if (i >= 657 && i < 692) { G.input.keys['Space'] = true; }
+    if (i === 692) { G.input.keys['Space'] = false; var hc2 = G.player.inCar; var sed = G.vehiclePool.acquire('sedan', hc2.x, hc2.z, 0); G.vehicles.push(sed); G.heliMagnet(); G.__hooked = G.magnetCar === sed; }
+    if (i === 697) { G.heliMagnet(); G.__dropped = !G.magnetCar; }
     frame();
   }
 } catch (e) { fail('frame loop', e); }
@@ -230,5 +252,6 @@ try {
 console.log('frames OK. money=' + Math.floor(G.money) + ' stars=' + G.stars + ' respect=' + G.respect + ' kills=' + G.kills + ' crew=' + G.crew.length + ' grove=' + G.groveCount() + ' won=' + G._won);
 console.log('features: rampageKills=' + G.rampage.kills + ' skills=' + JSON.stringify({ run: Math.floor(G.skills.run), shoot: Math.floor(G.skills.shoot), drive: Math.floor(G.skills.drive) }) + ' mission=' + (G.mission ? 'active' : 'done') + ' fare=' + (G.fare ? 'active' : 'none'));
 console.log('heli: alt=' + (G.__heliAlt && G.__heliAlt.toFixed ? G.__heliAlt.toFixed(1) : G.__heliAlt) + ' exitBlockedMidair=' + G.__exitBlocked + ' landedExit=' + !G.player.inCar + ' | hp=' + G.player.hp + '/' + G.player.maxHp + ' emoteType=' + G.player.emoteType);
+console.log('pack2: cheats$=' + (G.__cheatMoney > 9000) + ' lowGrav=' + G.lowGravity + ' convoyCleared=' + !G.convoy + ' deathwish=' + G.__challengeDone + ' hooked=' + G.__hooked + ' dropped=' + G.__dropped + ' ramps=' + G.ramps.length + ' beastRunning=' + G.beast.active);
 console.log('peds=' + G.peds.length + ' vehicles=' + G.vehicles.length + ' particles=' + G.particles.length + ' bullets=' + G.bullets.length);
 console.log('SMOKE TEST PASSED');

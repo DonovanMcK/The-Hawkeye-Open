@@ -92,6 +92,12 @@
       if (e.code === 'KeyR') self.reload();
       if (e.code === 'KeyT') self.emote('taunt');
       if (e.code === 'KeyY') self.emote('dance');
+      if (e.code === 'KeyE') { if (self.inCar && self.inCar.isHeli) G.heliMagnet(); }
+      // cheat code buffer
+      if (/^Key[A-Z]$/.test(e.code)) {
+        G._cheatBuf = ((G._cheatBuf || '') + e.code.slice(3)).slice(-12);
+        if (G.checkCheat) G.checkCheat(G._cheatBuf);
+      }
       if (e.code.indexOf('Digit') === 0) { var n = parseInt(e.code.slice(5), 10); if (n >= 1 && n <= 9) self.selectSlot(n); }
       if (e.code === 'BracketLeft') self.cycleWeapon(-1);
       if (e.code === 'BracketRight') self.cycleWeapon(1);
@@ -160,6 +166,19 @@
     this.fireCd -= dt; this.fireHeatCd -= dt;
     var wantFire = G.input.mouseDown || G.input.fireHeld;
     if (this.emoteT > 0) return;
+    // tank: LMB fires the cannon regardless of weapon
+    if (this.inCar && this.inCar.isTank) {
+      if (!wantFire) { this._firedThisClick = false; return; }
+      if (this.fireCd > 0) return;
+      this.fireCd = 1.5;
+      var tdir = new THREE.Vector3(Math.sin(this.angle), 0.03, Math.cos(this.angle));
+      var torigin = new THREE.Vector3(this.x + tdir.x * 5, 2.1, this.z + tdir.z * 5);
+      G.combat.spawnRocket(torigin, tdir, this, this.inCar);
+      U.audio.sfx('deagle'); U.audio.sfx('rpgwhoosh');
+      G.camShake = Math.max(G.camShake, 0.6);
+      if (this.fireHeatCd <= 0) { G.addHeat(G.HEAT.fireGun); this.fireHeatCd = 3; }
+      return;
+    }
     // drive-by: one-handed weapons only — auto-switch so it just works
     if (this.inCar && w.id !== 'pistol' && w.id !== 'uzi') {
       if (!wantFire) return;
@@ -258,6 +277,8 @@
   };
 
   Player.prototype.recruitAction = function () {
+    // in the heli, the CREW button/G key works the magnet instead
+    if (this.inCar && this.inCar.isHeli) { G.heliMagnet(); return; }
     // look for grove ped or recruit nearby / in front
     var yaw = G.input.yaw, best = null, bestScore = -1, recruitTarget = null;
     for (var i = 0; i < G.peds.length; i++) {
@@ -335,6 +356,7 @@
     var mag = Math.sqrt(mx * mx + mz * mz);
     this.sprint = (K['ShiftLeft'] || K['ShiftRight'] || (G.input.touch && mag > 0.9));
     var speed = this.sprint ? 9 * (1 + G.skills.run * 0.0015) : 5;
+    if (G.beast.active) speed *= 1.25;
     if (this.sprint && mag > 0.01) G.skills.run = Math.min(100, G.skills.run + dt * 0.5);
     if (this.scoped || this.slot === 'minigun') speed *= 0.5;
     if (mag > 0.05 && this.emoteT > 0) this.emoteT = 0; // moving cancels emotes
@@ -350,8 +372,8 @@
       this.walkPhase = (this.walkPhase || 0) + dt * (8 + speed);
     }
     // jump
-    if ((G.input.keys['Space'] || G.input.jumpPressed) && this.onGround) { this.vy = 7; this.onGround = false; G.input.jumpPressed = false; }
-    this.vy -= 20 * dt; this.y += this.vy * dt;
+    if ((G.input.keys['Space'] || G.input.jumpPressed) && this.onGround) { this.vy = G.lowGravity ? 11 : 7; this.onGround = false; G.input.jumpPressed = false; }
+    this.vy -= (G.lowGravity ? 7 : 20) * dt; this.y += this.vy * dt;
     if (this.y <= 0) { this.y = 0; this.vy = 0; this.onGround = true; }
     // face aim
     this.angle = yaw;

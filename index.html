@@ -74,6 +74,9 @@
   #hitmarker.kill:after { top:16px; width:34px; background:#ff3a3a; }
   #headshot { position:fixed; left:50%; top:57%; transform:translateX(-50%); z-index:19; display:none; pointer-events:none;
     color:#ff4a4a; font-weight:900; font-size:20px; letter-spacing:2px; text-shadow:1px 1px 0 #000, -1px -1px 0 #000; }
+  #pow { position:fixed; left:50%; top:44%; transform:translate(-50%,-50%); z-index:19; display:none; pointer-events:none;
+    color:#ffe000; font-weight:900; font-size:64px; letter-spacing:3px; -webkit-text-stroke:3px #000;
+    text-shadow:4px 4px 0 #c0392b; }
 
   /* start screen */
   #start { position:fixed; inset:0; z-index:50; display:flex; flex-direction:column; align-items:center; justify-content:center;
@@ -167,6 +170,7 @@
   <div id="crosshair"><div class="dot"></div></div>
   <div id="hitmarker"></div>
   <div id="headshot">HEADSHOT!</div>
+  <div id="pow">POW!</div>
 
   <!-- HUD -->
   <div id="hud">
@@ -228,7 +232,7 @@
     <h1>PAUSED</h1>
     <div id="pause-progress">TERRITORIES: 2 / 16</div>
     <div id="pause-stats" style="font-size:16px;color:#9fff9f;margin-bottom:1vh;"></div>
-    <div class="ctrls">WASD move · Mouse aim · LMB fire · RMB scope (sniper) · Shift sprint · Space jump / handbrake · F enter/exit vehicle · G recruit/dismiss homie · T taunt · Y dance · R reload · 1-9 or wheel weapons · N or TAB full map · B radio · M mute · Esc pause<br>Yellow marker at AMMU-NATION = gun shop. Red ring at HOSPITAL = heal $50. Green ring at GROVE HQ = bounty missions (follow the red beam). The helicopter waits at the HQ pad: Space climbs, Shift or S descends. Kill 3 rivals in their turf to start a GANG WAR.</div>
+    <div class="ctrls">WASD move · Mouse aim · LMB fire · RMB scope (sniper) · Shift sprint · Space jump / handbrake · F enter/exit vehicle · G recruit/dismiss homie · T taunt · Y dance · E heli magnet · R reload · 1-9 or wheel weapons · N or TAB full map · B radio · M mute · Esc pause<br>Yellow marker at AMMU-NATION = gun shop. Red ring at HOSPITAL = heal $50. Green ring at GROVE HQ = bounty missions (red beam). Blue ring at POLICE = DEATHWISH challenge. Heli at HQ pad: Space up, Shift/S down, E hooks cars. Hit ramps fast for stunt bonuses. At 5★ the army sends a Rhino tank — steal it (LMB = cannon). Psst... cheat words exist: type them in-game.</div>
     <div>
       <button id="pause-resume" class="menu-btn">RESUME</button>
       <button id="pause-mute" class="menu-btn">MUTE</button>
@@ -254,13 +258,13 @@
        The ?v= stamp must be bumped on every release so CDN proxies
        (e.g. githack) don't serve stale cached game code. -->
   <script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
-  <script src="js/util.js?v=5"></script>
-  <script src="js/config.js?v=5"></script>
-  <script src="js/city.js?v=5"></script>
-  <script src="js/peds.js?v=5"></script>
-  <script src="js/vehicles.js?v=5"></script>
-  <script src="js/player.js?v=5"></script>
-  <script src="js/hud.js?v=5"></script>
-  <script src="js/game.js?v=5"></script>
+  <script src="js/util.js?v=6"></script>
+  <script src="js/config.js?v=6"></script>
+  <script src="js/city.js?v=6"></script>
+  <script src="js/peds.js?v=6"></script>
+  <script src="js/vehicles.js?v=6"></script>
+  <script src="js/player.js?v=6"></script>
+  <script src="js/hud.js?v=6"></script>
+  <script src="js/game.js?v=6"></script>
 </body>
 </html>

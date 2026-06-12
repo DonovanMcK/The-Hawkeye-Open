@@ -95,6 +95,7 @@
     police:  { name: 'Police',  maxSpeed: 34, accel: 20, color: 0x1c3f6e, gang: null },
     bike:    { name: 'Dirt Bike', maxSpeed: 36, accel: 28, color: 0xd35400, gang: null },
     heli:    { name: 'Helicopter', maxSpeed: 46, accel: 18, color: 0x37474f, gang: null },
+    tank:    { name: 'Rhino',   maxSpeed: 14, accel: 9,  color: 0x4b5320, gang: null },
   };
 
   // building tints
@@ -144,6 +145,14 @@
   G.mission = null;     // active bounty {target}
   G.fare = null;        // active taxi fare {x,z,t}
   G.radioStation = 1;   // 0 off, 1-2 stations; remembered between cars
+  G.beast = { active: false, t: 0 };  // beast-mode (one-punch kills)
+  G.convoy = null;      // rival convoy event {cars,t,gang}
+  G.challenge = null;   // deathwish wanted challenge {t}
+  G.timeScale = 1; G.slowmoT = 0;     // kill-cam slow motion
+  G.lowGravity = false; // MOON cheat
+  G.magnetCar = null;   // car carried by the heli magnet
+  G.ramps = [];         // stunt ramp zones
+  G.HOMIE_NAMES = ['SWEET', 'RYDER', 'BIG BEAR', 'OG LOC', 'CESAR', 'WOOZIE', 'MAD DOGG', 'JIZZY'];
 
   G.U = window.U;
   window.G = G;

@@ -40,6 +40,7 @@
     var s = new THREE.Sprite(m); s.scale.set(w || 16, (w || 16) / 4, 1); s.renderOrder = 5;
     return { sprite: s, canvas: c, ctx: ctx, tex: t };
   }
+  G.makeLabel = labelSprite;
 
   // bake whole ground: grass + road grid + lane dashes + sidewalks
   function groundTex(C) {
@@ -310,6 +311,14 @@
       hring.position.set(center.x, 3, center.z + bd / 2 + 5);
       group.add(hring);
       this.landmarks.hospital.markerX = center.x; this.landmarks.hospital.markerZ = center.z + bd / 2 + 5;
+    }
+    // police blue ring: walk in to start the DEATHWISH wanted challenge
+    if (type === 'police') {
+      var pring = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.2, 6, 16, 1, true),
+        new THREE.MeshBasicMaterial({ color: 0x4a8fff, transparent: true, opacity: 0.35, side: THREE.DoubleSide }));
+      pring.position.set(center.x, 3, center.z + bd / 2 + 5);
+      group.add(pring);
+      this.landmarks.police.markerX = center.x; this.landmarks.police.markerZ = center.z + bd / 2 + 5;
     }
     // ammu yellow marker (handled by pickups/game); store
     if (type === 'ammu') {

@@ -88,6 +88,8 @@
     this.fireCd = 0; this.stateT = 0; this.scared = false; this.arrestT = 0;
     this.moveSpeed = (team === 'cop' || team === 'swat') ? 5.2 : (team === 'recruit' ? 5.5 : U.rand(3.2, 4.4));
     this.bounty = false;
+    this.warsSurvived = 0; this.homieName = null; this.og = false;
+    if (this.nameSprite) { this.mesh.remove(this.nameSprite); this.nameSprite = null; }
     // weapon
     this.armed = false; this.weapon = null;
     pickWeaponForTeam(this);

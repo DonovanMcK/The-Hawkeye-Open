@@ -101,6 +101,32 @@ Take over San Andreas. The city is split into **16 territories** owned by your g
   taxi fare dropoff — visible over buildings.
 - **Radio:** two synthesized lo-fi G-funk stations play in vehicles (N to switch/off).
 - **Hit feedback:** crosshair X markers on hits (red on kills) and a HEADSHOT tag.
+- **Rhino tank:** the army deploys one at 5★ — heavily armored, rams everything; steal
+  it and LMB fires the cannon.
+- **Stunt ramps:** 10 ramps around the city; hit them fast for air and an
+  "INSANE STUNT BONUS" ($250 for 1.1s+ of airtime).
+- **Beast mode:** purple pickup — 30 seconds of one-punch kills with comic "POW!" flashes.
+- **Heli magnet:** press E (or the CREW button) while flying to hook the car below;
+  press again to drop it on someone.
+- **Convoy events:** rival gang convoys roll through every few minutes — destroy all
+  3 cars for $600 + respect.
+- **Deathwish challenge:** blue ring at the Police Station — survive 5 stars for 90
+  seconds for a $5000 pot.
+- **Homie veterans:** crew members that survive a territory war earn a name (shown over
+  their head); after 3 wars they go OG — 200 HP and an AK-47.
+- **Kill-cam:** capturing a territory or collecting a bounty triggers a slow-motion beat.
+
+### Cheat codes (type the word during play, desktop only)
+
+| Code | Effect |
+|------|--------|
+| `HESOYAM` | Full health + armor + $10,000 |
+| `CASHGOD` | +$10,000 |
+| `GUNS` | All weapons + ammo |
+| `BIGBANG` | Every car on the street explodes |
+| `MOON` | Low gravity (toggle) |
+| `CLEAN` | Clear wanted level |
+| `WANTED` | Instant 5 stars |
 
 ---
 
