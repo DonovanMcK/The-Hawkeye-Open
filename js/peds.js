@@ -313,7 +313,7 @@
       else this._setVelToward(tx, tz, this.moveSpeed);
     } else {
       if (d > 1.6) this._setVelToward(tx, tz, this.moveSpeed * 1.1);
-      else { this.vx = this.vz = 0; this._meleeAttack(tgt, d, 8); }
+      else { this.vx = this.vz = 0; this._meleeAttack(tgt, d, 5); }
     }
     if (d > 40) { this.state = 'wander'; this.scared = false; }
   };
@@ -324,7 +324,7 @@
     var tx = tgt.x, tz = tgt.z, d = U.dist(this.x, this.z, tx, tz);
     if (this.melee) {
       if (d > 1.8) this._setVelToward(tx, tz, this.moveSpeed * 1.15);
-      else { this.vx = this.vz = 0; this._meleeAttack(tgt, d, 12); }
+      else { this.vx = this.vz = 0; this._meleeAttack(tgt, d, 8); }
     } else {
       var ideal = 14;
       if (d > ideal + 4) this._setVelToward(tx, tz, this.moveSpeed);

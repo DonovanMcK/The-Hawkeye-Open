@@ -82,7 +82,9 @@
     window.addEventListener('resize', resize);
     window.addEventListener('orientationchange', function () { setTimeout(resize, 200); });
 
-    // start screen
+    // start screen (build badge = stale-cache detector)
+    var badge = document.getElementById('build-badge');
+    if (badge) badge.textContent = 'BUILD ' + G.BUILD;
     document.getElementById('start').addEventListener('click', startGame);
     document.getElementById('start').addEventListener('touchend', function (e) { e.preventDefault(); startGame(); }, { passive: false });
 
@@ -544,9 +546,11 @@
     if (hitEnt) {
       G.spawnParticle('spark', ex, ey, ez);
       var killed = false;
-      if (hitEnt === G.player) G.player.takeDamage(w.dmg, shooter);
-      else if (hitEnt.takeDamage && hitEnt.spawn) killed = hitEnt.takeDamage(w.dmg, headshot, shooter); // ped
-      else if (hitEnt.takeDamage) hitEnt.takeDamage(w.dmg); // vehicle
+      // bots (except your recruits) hit at reduced damage
+      var dmg = (shooter === G.player || shooter.recruit) ? w.dmg : w.dmg * G.cfg.NPC_DMG_SCALE;
+      if (hitEnt === G.player) G.player.takeDamage(dmg, shooter);
+      else if (hitEnt.takeDamage && hitEnt.spawn) killed = hitEnt.takeDamage(dmg, headshot, shooter); // ped
+      else if (hitEnt.takeDamage) hitEnt.takeDamage(dmg); // vehicle
       // hit feedback + shooting skill for the player
       if (shooter === G.player && hitEnt !== G.player) {
         G.skills.shoot = Math.min(100, G.skills.shoot + 0.3);

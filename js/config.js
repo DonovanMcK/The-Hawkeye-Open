@@ -3,6 +3,7 @@
   'use strict';
 
   var G = {};
+  G.BUILD = 7; // bump every release; shown on start screen so stale caches are obvious
 
   // ---- world constants ----
   G.cfg = {
@@ -31,6 +32,7 @@
     COP_HP: 100,
     SWAT_HP: 150,
     RECRUIT_HP: 120,
+    NPC_DMG_SCALE: 0.45,  // bots deal a fraction of listed weapon damage
   };
 
   // day/night palette stops, in cycle order (t 0..1)
@@ -45,15 +47,16 @@
   ];
 
   // ---- weapons (§5) ----
-  // dmg, rpm, range, spread(deg), mag, ammoType, auto, pellets, projectile, price, clipPrice
+  // damage tiers: pistols 30/80, SMG spray 16, shotgun 20x8 (1-2 hit kill up close),
+  // rifle 35, sniper 200 (always lethal), explosives 120 splash, minigun 20 stream
   G.WEAPONS = [
     { slot: 1, id: 'fists',    name: 'FISTS',        dmg: 10,  rpm: 120,  range: 1.8, spread: 0, mag: 0,   ammo: null,     auto: true,  price: 0,    clipPrice: 0,   sfx: 'punch' },
-    { slot: 2, id: 'pistol',   name: 'PISTOL',       dmg: 25,  rpm: 240,  range: 60,  spread: 1.5, mag: 17, ammo: '9mm',    auto: false, price: 100,  clipPrice: 20,  sfx: 'pistol' },
-    { slot: 3, id: 'deagle',   name: 'DESERT EAGLE', dmg: 70,  rpm: 90,   range: 70,  spread: 2,   mag: 7,  ammo: '.50',    auto: false, price: 1000, clipPrice: 60,  sfx: 'deagle' },
-    { slot: 4, id: 'uzi',      name: 'MICRO-UZI',    dmg: 14,  rpm: 900,  range: 45,  spread: 5,   mag: 30, ammo: '9mm',    auto: true,  price: 600,  clipPrice: 20,  sfx: 'uzi' },
-    { slot: 5, id: 'shotgun',  name: 'SHOTGUN',      dmg: 12,  rpm: 60,   range: 25,  spread: 8,   mag: 6,  ammo: 'shells', auto: false, pellets: 8, price: 700,  clipPrice: 40,  sfx: 'shotgun' },
-    { slot: 6, id: 'ak',       name: 'AK-47',        dmg: 30,  rpm: 480,  range: 80,  spread: 3,   mag: 30, ammo: 'rifle',  auto: true,  price: 1300, clipPrice: 50,  sfx: 'ak' },
-    { slot: 7, id: 'sniper',   name: 'SNIPER RIFLE', dmg: 120, rpm: 40,   range: 200, spread: 0,   mag: 5,  ammo: 'rifle',  auto: false, scope: true, price: 2300, clipPrice: 80,  sfx: 'sniper' },
+    { slot: 2, id: 'pistol',   name: 'PISTOL',       dmg: 30,  rpm: 240,  range: 60,  spread: 1.5, mag: 17, ammo: '9mm',    auto: false, price: 100,  clipPrice: 20,  sfx: 'pistol' },
+    { slot: 3, id: 'deagle',   name: 'DESERT EAGLE', dmg: 80,  rpm: 90,   range: 70,  spread: 2,   mag: 7,  ammo: '.50',    auto: false, price: 1000, clipPrice: 60,  sfx: 'deagle' },
+    { slot: 4, id: 'uzi',      name: 'MICRO-UZI',    dmg: 16,  rpm: 900,  range: 45,  spread: 5,   mag: 30, ammo: '9mm',    auto: true,  price: 600,  clipPrice: 20,  sfx: 'uzi' },
+    { slot: 5, id: 'shotgun',  name: 'SHOTGUN',      dmg: 20,  rpm: 60,   range: 25,  spread: 8,   mag: 6,  ammo: 'shells', auto: false, pellets: 8, price: 700,  clipPrice: 40,  sfx: 'shotgun' },
+    { slot: 6, id: 'ak',       name: 'AK-47',        dmg: 35,  rpm: 480,  range: 80,  spread: 3,   mag: 30, ammo: 'rifle',  auto: true,  price: 1300, clipPrice: 50,  sfx: 'ak' },
+    { slot: 7, id: 'sniper',   name: 'SNIPER RIFLE', dmg: 200, rpm: 40,   range: 200, spread: 0,   mag: 5,  ammo: 'rifle',  auto: false, scope: true, price: 2300, clipPrice: 80,  sfx: 'sniper' },
     { slot: 8, id: 'rpg',      name: 'RPG',          dmg: 120, rpm: 30,   range: 100, spread: 0,   mag: 1,  ammo: 'rockets',auto: false, projectile: true, price: 3800, clipPrice: 500, sfx: 'rpgwhoosh' },
     { slot: 9, id: 'minigun',  name: 'MINIGUN',      dmg: 20,  rpm: 1800, range: 60,  spread: 4,   mag: 100,ammo: '5.56',   auto: true,  spinup: 0.7, price: 7800, clipPrice: 300, sfx: 'minigun' },
   ];

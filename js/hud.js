@@ -165,6 +165,11 @@
     if (G.mission && G.mission.target && G.mission.target.alive) this.radarIcon(ctx, G.mission.target, px, pz, scale, R, '#ff2020', '!');
     if (G.fare) this.radarIcon(ctx, G.fare, px, pz, scale, R, '#ffe000', '$');
     if (G.hqMarker && !G.mission) this.radarIcon(ctx, G.hqMarker, px, pz, scale, R, '#3da35d', 'B');
+    // nearest available helicopter
+    for (var hv = 0; hv < G.vehicles.length; hv++) {
+      var hh = G.vehicles[hv];
+      if (hh.active && hh.isHeli && !hh.wreck && !hh.isPlayer) { this.radarIcon(ctx, hh, px, pz, scale, R, '#7fdfff', '+'); break; }
+    }
     ctx.restore();
     // player arrow (fixed, points up)
     ctx.fillStyle = '#ffffff'; ctx.beginPath();
@@ -217,6 +222,10 @@
     this.mapIcon(ctx, mx(lm.police.x), mz(lm.police.z), '#5588ff', 'P', 'POLICE');
     this.mapIcon(ctx, mx(lm.ammu.x), mz(lm.ammu.z), '#ffe000', '$', 'AMMU-NATION');
     if (G.hqMarker) this.mapIcon(ctx, mx(G.hqMarker.x), mz(G.hqMarker.z), '#3da35d', 'B', 'BOUNTY HQ');
+    for (var hv2 = 0; hv2 < G.vehicles.length; hv2++) {
+      var hm = G.vehicles[hv2];
+      if (hm.active && hm.isHeli && !hm.wreck && !hm.isPlayer) { this.mapIcon(ctx, mx(hm.x), mz(hm.z), '#7fdfff', '+', 'HELI'); break; }
+    }
     if (G.mission && G.mission.target && G.mission.target.alive) this.mapIcon(ctx, mx(G.mission.target.x), mz(G.mission.target.z), '#ff2020', '!', 'TARGET');
     if (G.fare) this.mapIcon(ctx, mx(G.fare.x), mz(G.fare.z), '#ffe000', '$', 'FARE');
     // crew blips
@@ -280,7 +289,7 @@
     var el = $('pause');
     if (on) {
       el.style.display = 'flex';
-      $('pause-progress').textContent = 'TERRITORIES: ' + G.groveCount() + ' / 16';
+      $('pause-progress').textContent = 'TERRITORIES: ' + G.groveCount() + ' / 16 · BUILD ' + G.BUILD;
       $('pause-stats').textContent = 'SKILLS — RUNNING ' + Math.floor(G.skills.run) + '% · SHOOTING ' + Math.floor(G.skills.shoot) + '% · DRIVING ' + Math.floor(G.skills.drive) + '%';
     }
     else el.style.display = 'none';
