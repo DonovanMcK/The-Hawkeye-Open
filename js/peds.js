@@ -383,11 +383,15 @@
     var w = G.weaponById[this.weapon]; if (!w) return;
     if (d > w.range) return;
     if (this.fireCd > 0) return;
-    // accuracy: cops use wanted accuracy, others moderate
-    var acc = 0.5;
+    // accuracy: cops use wanted accuracy, others worse (recruits a bit better)
+    var acc = this.recruit ? 0.55 : 0.38;
     if (this.team === 'cop' || this.team === 'swat') acc = G.WANTED_RESPONSE[U.clamp(G.stars, 0, 6)].accuracy;
     G.combat.pedFire(this, w, tgt, acc);
-    this.fireCd = 60 / w.rpm * (w.auto ? 1 : 1) + (w.auto ? 0 : U.rand(0.2, 0.6));
+    // bots fire in human-paced bursts, not at full weapon RPM
+    var base = 60 / w.rpm;
+    this.fireCd = w.auto
+      ? base * 2.5 + (U.chance(0.3) ? 0.7 : 0)
+      : base + U.rand(0.3, 0.8);
     // raise arm pose
     this._aimPose = 0.25;
   };

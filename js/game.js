@@ -578,8 +578,8 @@
     var dx = target.x - ped.x, dy = ty - 1.5, dz = target.z - ped.z;
     var d = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
     var dir = new V3(dx / d, dy / d, dz / d);
-    // inaccuracy
-    var miss = (1 - accuracy) * 0.12;
+    // inaccuracy (wider misses keep bots fair)
+    var miss = (1 - accuracy) * 0.17;
     dir.x += U.rand(-miss, miss); dir.y += U.rand(-miss, miss) * 0.4; dir.z += U.rand(-miss, miss);
     var origin = new V3(ped.x, 1.5, ped.z);
     U.audio.throttle('ped' + w.id, 60) && U.audio.sfx(w.sfx);

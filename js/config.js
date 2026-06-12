@@ -3,7 +3,7 @@
   'use strict';
 
   var G = {};
-  G.BUILD = 8; // bump every release; shown on start screen so stale caches are obvious
+  G.BUILD = 9; // bump every release; shown on start screen so stale caches are obvious
 
   // ---- world constants ----
   G.cfg = {
@@ -32,7 +32,7 @@
     COP_HP: 100,
     SWAT_HP: 150,
     RECRUIT_HP: 120,
-    NPC_DMG_SCALE: 0.45,  // bots deal a fraction of listed weapon damage
+    NPC_DMG_SCALE: 0.3,   // bots deal a fraction of listed weapon damage
   };
 
   // day/night palette stops, in cycle order (t 0..1)
@@ -71,13 +71,13 @@
   };
   // alive-cop caps and car counts per star
   G.WANTED_RESPONSE = [
-    { cops: 0,  cars: 0, swat: 0, accuracy: 0.4 },   // 0 stars
-    { cops: 2,  cars: 0, swat: 0, accuracy: 0.4 },   // 1
-    { cops: 4,  cars: 0, swat: 0, accuracy: 0.45 },  // 2
-    { cops: 6,  cars: 2, swat: 0, accuracy: 0.5 },   // 3
-    { cops: 8,  cars: 3, swat: 0, accuracy: 0.62 },  // 4
-    { cops: 10, cars: 3, swat: 3, accuracy: 0.7 },   // 5
-    { cops: 12, cars: 4, swat: 6, accuracy: 0.78 },  // 6
+    { cops: 0,  cars: 0, swat: 0, accuracy: 0.3 },   // 0 stars
+    { cops: 2,  cars: 0, swat: 0, accuracy: 0.3 },   // 1
+    { cops: 4,  cars: 0, swat: 0, accuracy: 0.35 },  // 2
+    { cops: 6,  cars: 2, swat: 0, accuracy: 0.4 },   // 3
+    { cops: 8,  cars: 3, swat: 0, accuracy: 0.5 },   // 4
+    { cops: 10, cars: 3, swat: 3, accuracy: 0.55 },  // 5
+    { cops: 12, cars: 4, swat: 6, accuracy: 0.6 },   // 6
   ];
 
   // ---- gangs (§7) ----
