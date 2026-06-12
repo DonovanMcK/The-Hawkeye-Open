@@ -89,7 +89,7 @@
     var cs = '● ' + G.crew.length;
     if (this.last.crew !== cs) { this.elCrew.textContent = cs; this.last.crew = cs; }
     // car hp
-    if (p.inCar) { this.elCarWrap.style.display = 'block'; this.setBar('carhp', this.elCarHp, p.inCar.hp / 100); }
+    if (p.inCar) { this.elCarWrap.style.display = 'block'; this.setBar('carhp', this.elCarHp, p.inCar.hp / (p.inCar.maxHpV || 150)); }
     else if (this.elCarWrap.style.display !== 'none') this.elCarWrap.style.display = 'none';
     // objective line (priority: rampage > war > defense > fare > bounty > default)
     var obj, contested = null;
@@ -254,6 +254,19 @@
     this._ammuOpen = true; G.paused = true;
     var menu = $('ammu'); menu.style.display = 'flex';
     this.renderAmmu();
+    // arrow buttons scroll the list (small screens can't fit all 9 weapons)
+    if (!this._ammuArrowsWired) {
+      this._ammuArrowsWired = true;
+      var body = $('ammu-body');
+      function wireScroll(id, dir) {
+        var el = $(id);
+        var go = function (e) { if (e && e.preventDefault) e.preventDefault(); body.scrollTop = (body.scrollTop || 0) + dir * 130; };
+        el.addEventListener('click', go);
+        el.addEventListener('touchend', go);
+      }
+      wireScroll('ammu-up', -1);
+      wireScroll('ammu-down', 1);
+    }
   };
   HUD.closeAmmu = function () { this._ammuOpen = false; G.paused = false; $('ammu').style.display = 'none'; };
   HUD.renderAmmu = function () {
@@ -271,7 +284,16 @@
     html += '<div class="ammu-row"><span class="an">BODY ARMOR</span><span class="ad">+100</span><button data-buy="armor" data-w="armor">BUY $250</button></div>';
     body.innerHTML = html;
     var btns = body.querySelectorAll('button');
-    for (var b = 0; b < btns.length; b++) btns[b].onclick = function () { HUD.buy(this.getAttribute('data-buy'), this.getAttribute('data-w')); };
+    for (var b = 0; b < btns.length; b++) {
+      (function (btn) {
+        var act = function (e) { if (e && e.preventDefault) e.preventDefault(); HUD.buy(btn.getAttribute('data-buy'), btn.getAttribute('data-w')); };
+        btn.onclick = act;
+        // reliable touch buying — but ignore touch-ends that were scroll drags
+        var sy = 0;
+        btn.addEventListener('touchstart', function (e) { sy = e.changedTouches[0].clientY; }, { passive: true });
+        btn.addEventListener('touchend', function (e) { if (Math.abs(e.changedTouches[0].clientY - sy) < 10) act(e); });
+      })(btns[b]);
+    }
   };
   HUD.buy = function (kind, id) {
     var p = G.player;

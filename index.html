@@ -118,12 +118,17 @@
   #ammu { position:fixed; inset:0; z-index:47; display:none; flex-direction:column; align-items:center; justify-content:center;
     background:rgba(8,6,4,0.92); color:#fff; }
   #ammu h1 { font-size:42px; color:#ffd24a; font-weight:900; letter-spacing:2px; }
-  #ammu-body { width:min(560px,92vw); margin-top:14px; }
+  #ammu-body { width:min(560px,92vw); margin-top:14px; max-height:52vh; overflow-y:auto;
+    -webkit-overflow-scrolling:touch; overscroll-behavior:contain; }
+  #ammu-scroll { display:flex; gap:14px; margin-top:10px; }
+  #ammu-scroll button { font-family:inherit; font-weight:900; font-size:22px; background:#333; color:#ffd24a;
+    border:2px solid #777; padding:8px 26px; cursor:pointer; }
+  #ammu-scroll button:active { background:#555; }
   .ammu-money { font-size:24px; color:#2fd11a; margin-bottom:8px; text-align:center; }
   .ammu-row { display:flex; align-items:center; gap:8px; padding:6px 8px; border-bottom:1px solid rgba(255,255,255,0.12); }
   .ammu-row .an { flex:1; font-size:18px; font-weight:900; }
   .ammu-row .ad { width:64px; font-size:13px; color:#aaa; }
-  .ammu-row button { font-family:inherit; font-weight:900; background:#333; color:#fff; border:1px solid #777; padding:6px 10px; cursor:pointer; font-size:13px; }
+  .ammu-row button { font-family:inherit; font-weight:900; background:#333; color:#fff; border:1px solid #777; padding:12px 14px; cursor:pointer; font-size:14px; min-width:88px; }
   .ammu-row button:hover { background:#555; } .ammu-row button:disabled { opacity:0.35; cursor:default; }
   #ammu .menu-btn { margin-top:14px; }
 
@@ -247,6 +252,10 @@
   <div id="ammu">
     <h1>AMMU-NATION</h1>
     <div id="ammu-body"></div>
+    <div id="ammu-scroll">
+      <button id="ammu-up">▲</button>
+      <button id="ammu-down">▼</button>
+    </div>
     <button class="menu-btn" onclick="window.G.hud.closeAmmu()">LEAVE STORE</button>
   </div>
 
@@ -261,13 +270,13 @@
        The ?v= stamp must be bumped on every release so CDN proxies
        (e.g. githack) don't serve stale cached game code. -->
   <script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
-  <script src="js/util.js?v=7"></script>
-  <script src="js/config.js?v=7"></script>
-  <script src="js/city.js?v=7"></script>
-  <script src="js/peds.js?v=7"></script>
-  <script src="js/vehicles.js?v=7"></script>
-  <script src="js/player.js?v=7"></script>
-  <script src="js/hud.js?v=7"></script>
-  <script src="js/game.js?v=7"></script>
+  <script src="js/util.js?v=8"></script>
+  <script src="js/config.js?v=8"></script>
+  <script src="js/city.js?v=8"></script>
+  <script src="js/peds.js?v=8"></script>
+  <script src="js/vehicles.js?v=8"></script>
+  <script src="js/player.js?v=8"></script>
+  <script src="js/hud.js?v=8"></script>
+  <script src="js/game.js?v=8"></script>
 </body>
 </html>

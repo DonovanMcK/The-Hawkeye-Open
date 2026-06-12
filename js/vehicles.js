@@ -144,7 +144,8 @@
     this.active = true; this.arch = arch; this.x = x; this.z = z; this.angle = angle || 0;
     var def = G.VEHICLES[arch];
     this.maxSpeed = def.maxSpeed; this.accel = def.accel;
-    this.speed = 0; this.hp = 100; this.flames = 0; this.wreck = false; this.wreckT = 0;
+    this.maxHpV = def.hp || 150;
+    this.speed = 0; this.hp = this.maxHpV; this.flames = 0; this.wreck = false; this.wreckT = 0;
     this.driver = null; this.occupants = []; this.isPlayer = false;
     this.copCar = (arch === 'police'); this.unloaded = false;
     this.isBike = (arch === 'bike'); this.radius = this.isBike ? 0.9 : 1.6;
@@ -385,11 +386,11 @@
   };
 
   Vehicle.prototype._damageFx = function (dt) {
-    if (this.hp < 15) {
+    if (this.hp < this.maxHpV * 0.15) {
       this.flames += dt;
       this._smoke(dt, true);
       if (this.flames > 3) this.explode();
-    } else if (this.hp < 40) {
+    } else if (this.hp < this.maxHpV * 0.4) {
       this._smoke(dt, false);
     }
   };

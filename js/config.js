@@ -3,7 +3,7 @@
   'use strict';
 
   var G = {};
-  G.BUILD = 7; // bump every release; shown on start screen so stale caches are obvious
+  G.BUILD = 8; // bump every release; shown on start screen so stale caches are obvious
 
   // ---- world constants ----
   G.cfg = {
@@ -26,7 +26,7 @@
     CAP_PARTICLE: 200,
 
     AI_FULL_DIST: 60,     // full-rate AI radius
-    PLAYER_HP: 150,
+    PLAYER_HP: 250,
     PED_HP: 60,
     GANG_HP: 100,
     COP_HP: 100,
@@ -91,14 +91,14 @@
 
   // ---- vehicles (§8) ----
   G.VEHICLES = {
-    sedan:   { name: 'Sedan',   maxSpeed: 28, accel: 16, color: 0x9fb0c0, gang: null },
-    sports:  { name: 'Sports',  maxSpeed: 38, accel: 24, color: 0xc0392b, gang: null },
-    lowrider:{ name: 'Lowrider',maxSpeed: 26, accel: 14, color: 0x2e7d32, gang: 'grove' },
-    taxi:    { name: 'Taxi',    maxSpeed: 27, accel: 16, color: 0xf1c40f, gang: null },
-    police:  { name: 'Police',  maxSpeed: 34, accel: 20, color: 0x1c3f6e, gang: null },
-    bike:    { name: 'Dirt Bike', maxSpeed: 36, accel: 28, color: 0xd35400, gang: null },
-    heli:    { name: 'Helicopter', maxSpeed: 46, accel: 18, color: 0x37474f, gang: null },
-    tank:    { name: 'Rhino',   maxSpeed: 14, accel: 9,  color: 0x4b5320, gang: null },
+    sedan:   { name: 'Sedan',   maxSpeed: 28, accel: 16, color: 0x9fb0c0, gang: null, hp: 150 },
+    sports:  { name: 'Sports',  maxSpeed: 38, accel: 24, color: 0xc0392b, gang: null, hp: 140 },
+    lowrider:{ name: 'Lowrider',maxSpeed: 26, accel: 14, color: 0x2e7d32, gang: 'grove', hp: 150 },
+    taxi:    { name: 'Taxi',    maxSpeed: 27, accel: 16, color: 0xf1c40f, gang: null, hp: 150 },
+    police:  { name: 'Police',  maxSpeed: 34, accel: 20, color: 0x1c3f6e, gang: null, hp: 160 },
+    bike:    { name: 'Dirt Bike', maxSpeed: 36, accel: 28, color: 0xd35400, gang: null, hp: 100 },
+    heli:    { name: 'Helicopter', maxSpeed: 46, accel: 18, color: 0x37474f, gang: null, hp: 220 },
+    tank:    { name: 'Rhino',   maxSpeed: 14, accel: 9,  color: 0x4b5320, gang: null, hp: 120 },
   };
 
   // building tints

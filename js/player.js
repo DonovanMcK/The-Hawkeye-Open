@@ -220,7 +220,7 @@
     U.audio.sfx(w.sfx);
     if (w.id === 'rpg') { U.audio.sfx('rpgwhoosh'); }
     // drive-by gets a wide auto-target cone; shooting skill tightens spread up to 30%
-    var aimAssist = this.inCar ? 60 : (G.input.touch ? 5 : 0);
+    var aimAssist = this.inCar ? 60 : (G.input.touch ? 8 : 2.5);
     var spread = w.spread * (1 - G.skills.shoot * 0.003);
     if (w.projectile) G.combat.spawnRocket(origin, dir, this);
     else if (w.pellets) { for (var p = 0; p < w.pellets; p++) G.combat.fireHitscan(origin, jitter(dir, spread), w, this, aimAssist); }
