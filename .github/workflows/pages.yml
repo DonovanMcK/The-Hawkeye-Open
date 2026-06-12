@@ -1,0 +1,26 @@
+name: Publish to GitHub Pages
+
+# Keeps the gh-pages branch in sync with the game branch on every push.
+# GitHub Pages serves the gh-pages branch (legacy branch deployment),
+# which avoids needing admin rights to create a Pages site from Actions.
+
+on:
+  push:
+    branches: ["claude/repo-scraping-new-purpose-hqwqwr"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Sync branch to gh-pages
+        run: git push origin HEAD:gh-pages --force
